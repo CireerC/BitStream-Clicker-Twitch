@@ -1,5 +1,22 @@
 # Changelog — BitStream
 
+---
+
+## 📚 Documentation Index
+
+**Root Level:**
+- `README.md` — Quick start & overview
+- `CHANGELOG.md` — This file (version history)
+- `CLAUDE.md` — Architecture & project requirements
+
+**In `/docs/` folder:**
+- `INDEX.md` — Documentation map
+- `VERCEL_DEPLOY.md` — Deploy to Vercel (3 options)
+- `QUICKREF.md` — Commands, customization, troubleshooting
+- `ROADMAP.md` — Future roadmap & planned features
+
+---
+
 ## [v2.0] — Complete Refactor: Projects + New Modules + Pikachu Theme ✅ DONE
 
 **Release Date**: 2026-04-28  

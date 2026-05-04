@@ -185,9 +185,11 @@ Changes apply immediately with `npm run dev`.
 
 ## 📝 Documentation
 
+- **[docs/VERCEL_DEPLOY.md](docs/VERCEL_DEPLOY.md)** — Complete Vercel deployment guide (3 options)
+- **[docs/QUICKREF.md](docs/QUICKREF.md)** — Customization & quick reference
 - **[CHANGELOG.md](CHANGELOG.md)** — Detailed v2.0 changes + what was refactored
-- **[VERCEL_DEPLOY.md](VERCEL_DEPLOY.md)** — Complete Vercel deployment guide (3 options)
 - **[CLAUDE.md](CLAUDE.md)** — Project requirements & architecture notes
+- **[docs/INDEX.md](docs/INDEX.md)** — Documentation map
 
 ---
 
