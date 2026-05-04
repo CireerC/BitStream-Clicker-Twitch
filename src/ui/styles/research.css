@@ -1,0 +1,106 @@
+/* ── Research Lab (DEPRECATED) ──────────────────────────────────────────────
+   Kept for historical reference only. Research system moved to ProjectSystem.
+   Research techs still run in background via GameStore for multipliers only.
+──────────────────────────────────────────────────────────────────────────────*/
+
+/* .research-panel removed */
+/* .tech-tree removed */
+/* .tech-card removed */
+
+/* ── Endgame modal (still in use, triggered via Projects endgame project) ────*/
+@keyframes endgame-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes endgame-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.endgame-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 8, 13, 0.96);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: overlay-in 0.5s ease;
+}
+
+.endgame-overlay--out { animation: endgame-out 0.5s ease forwards; }
+
+.endgame-modal {
+  position: relative;
+  text-align: center;
+  max-width: 560px;
+  width: 90vw;
+  padding: var(--gap-xl);
+  background: var(--bg-1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 80px rgba(251, 191, 36, 0.1);
+  animation: endgame-in 0.6s ease;
+}
+
+.endgame-modal__glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--r-lg);
+  background: conic-gradient(from 0deg, var(--accent), var(--accent3), var(--gold), var(--accent2), var(--accent));
+  opacity: 0.15;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.endgame-modal__icon { font-size: 4rem; margin-bottom: var(--gap-md); }
+
+.endgame-modal__title {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin-bottom: var(--gap-md);
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.endgame-modal__subtitle {
+  color: var(--text-1);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: var(--gap-lg);
+}
+
+.endgame-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap-md);
+  margin-bottom: var(--gap-lg);
+  padding: var(--gap-md);
+  background: var(--bg-0);
+  border-radius: var(--r-md);
+}
+
+.endgame-stat { display: flex; flex-direction: column; gap: 4px; }
+.endgame-stat__label { font-size: 0.7rem; color: var(--text-2); }
+.endgame-stat__value { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+
+.endgame-modal__continue { font-size: 0.82rem; color: var(--text-2); margin-bottom: var(--gap-md); }
+
+.endgame-close {
+  background: var(--gold);
+  color: var(--bg-0);
+  border: none;
+  border-radius: var(--r-md);
+  padding: 12px 32px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.endgame-close:hover { opacity: 0.85; transform: translateY(-2px); }
+

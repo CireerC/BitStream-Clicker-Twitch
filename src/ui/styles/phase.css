@@ -1,0 +1,164 @@
+/* ── Phase unlock notification (slides in from right) ──────────────────────── */
+
+@keyframes phase-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes phase-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(40px); }
+}
+
+.phase-notif {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 900;
+  width: 320px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-accent);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: var(--gap-md);
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 229, 192, 0.06);
+  animation: phase-in 0.35s ease;
+}
+
+.phase-notif--out {
+  animation: phase-out 0.3s ease forwards;
+}
+
+.phase-notif__badge {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--bg-0);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: var(--gap-sm);
+}
+
+.phase-notif__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-0);
+  margin-bottom: 4px;
+}
+
+.phase-notif__narrative {
+  font-size: 0.82rem;
+  color: var(--text-1);
+  line-height: 1.5;
+  margin-bottom: var(--gap-xs);
+}
+
+.phase-notif__unlocks {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-top: var(--gap-xs);
+}
+
+.phase-notif__unlocks strong { font-family: var(--font-mono); }
+
+/* ── Mini-game corner card ─────────────────────────────────────────────────── */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mg-card {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 900;
+  width: 340px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--r-md);
+  padding: var(--gap-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 229, 192, 0.06);
+  animation: card-in 0.3s ease;
+}
+
+.mg-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-sm);
+}
+
+.mg-card__title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-0);
+}
+
+.mg-card__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+.mg-card__timer {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent2);
+  width: 2ch;
+  text-align: right;
+}
+
+.mg-card__close {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.mg-card__close:hover { background: var(--bg-3); color: var(--accent2); }
+
+.mg-card__instructions {
+  font-size: 0.82rem;
+  color: var(--text-1);
+  margin-bottom: var(--gap-sm);
+}
+
+.mg-card__arena {
+  position: relative;
+  min-height: 120px;
+  background: var(--bg-0);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  margin-bottom: var(--gap-sm);
+}
+
+.mg-card__result {
+  display: flex;
+  justify-content: center;
+}
+
+.mg-result--win  span { color: var(--accent); font-weight: 700; }
+.mg-result--lose span { color: var(--accent2); font-weight: 700; }
+.mg-result small { color: var(--text-1); font-size: 0.75rem; }
+
+.mg-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--gap-sm);
+  text-align: center;
+}

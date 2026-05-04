@@ -1,0 +1,3 @@
+Amelioration pour plus tard : 
+
+faire en sorte de pouvoir changer le skin de l'app (en changeant le css)

@@ -1,0 +1,166 @@
+/* ── Floater (click popup) ───────────────────────────────────────────────── */
+@keyframes floater-up {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.8); }
+}
+
+.click-floater {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent);
+  animation: floater-up 0.8s ease-out forwards;
+}
+
+/* ── Button pop ──────────────────────────────────────────────────────────── */
+@keyframes btn-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.93); }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+.click-btn--pop {
+  animation: btn-pop 0.18s ease-out;
+}
+
+/* ── Ripple ──────────────────────────────────────────────────────────────── */
+@keyframes ripple {
+  0%   { opacity: 0.5; transform: translate(-50%, -50%) scale(0); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(3.5); }
+}
+
+.click-ripple {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple 0.5s ease-out forwards;
+}
+
+/* ── Tick on counter ─────────────────────────────────────────────────────── */
+@keyframes bits-tick {
+  0%   { color: var(--text-0); }
+  50%  { color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+  100% { color: var(--text-0); }
+}
+
+.bits--tick {
+  animation: bits-tick 0.3s ease-out;
+}
+
+/* ── Generator card bought flash ─────────────────────────────────────────── */
+@keyframes card-bought {
+  0%   { background: var(--accent); }
+  100% { background: var(--bg-2); }
+}
+
+.gen-card--bought {
+  animation: card-bought 0.4s ease-out;
+}
+
+/* ── Upgrade purchased ───────────────────────────────────────────────────── */
+@keyframes upg-purchased {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+.upg-card--purchased {
+  animation: upg-purchased 0.4s ease-out forwards;
+}
+
+/* ── Mini-game corner card slide ─────────────────────────────────────────── */
+@keyframes card-slide-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes card-slide-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(16px) scale(0.96); }
+}
+
+.mg-card--out {
+  animation: card-slide-out 0.25s ease forwards;
+}
+
+/* kept for offline modal */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.mg-overlay { animation: overlay-in var(--t-med) ease; }
+.mg-overlay--out { animation: overlay-out var(--t-med) ease forwards; }
+
+/* ── Mini-game target pulse ──────────────────────────────────────────────── */
+@keyframes target-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 12px var(--accent); }
+  50%       { transform: scale(1.15); box-shadow: 0 0 28px var(--accent); }
+}
+
+.mg-target {
+  animation: target-pulse 0.7s ease-in-out infinite;
+}
+
+/* ── Twitch live dot ─────────────────────────────────────────────────────── */
+@keyframes live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 94, 58, 0.7); }
+  70%       { box-shadow: 0 0 0 6px rgba(255, 94, 58, 0); }
+}
+
+.twitch-badge__dot {
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Burst indicator blink ───────────────────────────────────────────────── */
+@keyframes burst-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+.burst-label {
+  animation: burst-blink 1s ease-in-out infinite;
+  color: var(--gold);
+}
+
+/* ── Quantum Phase glitch effect ─────────────────────────────────────────── */
+@keyframes quantum-glitch {
+  0%, 100% { transform: translate(0); }
+  20%      { transform: translate(-1px, 1px); }
+  40%      { transform: translate(1px, -1px); }
+  60%      { transform: translate(-1px, -1px); }
+  80%      { transform: translate(1px, 1px); }
+}
+
+[data-phase="5"] .stats-value {
+  animation: quantum-glitch 2s ease-in-out infinite;
+}
+
+@keyframes quantum-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.2); }
+}
+
+[data-phase="5"] .header__bits {
+  animation: quantum-pulse 1.5s ease-in-out infinite;
+  color: var(--gold);
+}
+
+
+.burst-value {
+  color: var(--gold);
+}

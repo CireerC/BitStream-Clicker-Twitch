@@ -1,0 +1,50 @@
+:root {
+  /* Palette — Pikachu-inspired with Quantum aesthetic for late game */
+  /* Phase 1-4: Warm yellow (Pikachu) on dark background (simplistic) */
+  /* Phase 5+: Quantum purple glitch effect (complex) */
+
+  --bg-0:    #07080d;   /* deepest background */
+  --bg-1:    #0f1117;   /* panel background */
+  --bg-2:    #181b25;   /* card background */
+  --bg-3:    #1f2333;   /* interactive surface */
+
+  /* Primary accent: Pikachu yellow (#FFD700) replaces teal */
+  --accent:  #ffd700;   /* pikachu yellow — primary CTA, interact */
+  --accent2: #ff5e3a;   /* hot orange — danger / burst / casino */
+  --accent3: #a78bfa;   /* quantum purple — projects / advanced */
+  --gold:    #ffc000;   /* bright yellow accent — rewards */
+
+  --text-0: #f0f2ff;    /* primary text */
+  --text-1: #9ca3af;    /* secondary / muted */
+  --text-2: #4b5563;    /* disabled */
+
+  --border:  #232738;
+  --border-accent: rgba(255, 215, 0, 0.2);
+
+  /* Typography */
+  --font-ui:   'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing */
+  --gap-xs: 4px;
+  --gap-sm: 8px;
+  --gap-md: 16px;
+  --gap-lg: 24px;
+  --gap-xl: 40px;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 20px;
+
+  /* Transitions */
+  --t-fast: 120ms ease;
+  --t-med:  250ms ease;
+}
+
+/* Quantum Phase 5+ overrides (glitchy effect, purple accent becomes primary) */
+[data-phase="5"] {
+  --accent: #a78bfa;    /* quantum purple becomes primary in endgame */
+  --gold: #e879f9;      /* magenta accent */
+}
+
