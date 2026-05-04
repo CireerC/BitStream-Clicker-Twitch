@@ -4,12 +4,13 @@ import { mountClicker } from '../modules/clicker/Clicker.js';
 import { mountProduction } from '../modules/production/Production.js';
 import { mountProjects } from '../modules/projects/ProjectSystem.js';
 import { mountCasino } from '../modules/casino/CasinoModule.js';
-import { mountTrade } from '../modules/trade/TradeModule.js';
-import { mountPuzzle } from '../modules/puzzle/PuzzleModule.js';
+import { mountMissions } from '../modules/missions/MissionsModule.js';
+import { mountLeaderboard } from '../modules/leaderboard/Leaderboard.js';
 import { startMiniGameManager } from '../modules/minigames/MiniGameManager.js';
-import { startPhaseManager, onPhaseUnlock } from '../modules/phases/PhaseManager.js';
+import { startPhaseManager } from '../modules/phases/PhaseManager.js';
 import { startTwitchPoller, mountTwitchBadge } from '../integrations/twitch/TwitchAPI.js';
 import { store } from '../core/GameStore.js';
+import { initI18n, t } from '../core/i18n.js';
 import { BALANCE, formatNumber } from '../core/balance.js';
 
 interface AppConfig {
@@ -18,50 +19,53 @@ interface AppConfig {
 }
 
 export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
+  // Initialize translation system
+  initI18n(store);
   root.innerHTML = `
     <div id="hdr"></div>
     <main class="layout">
-      <aside class="layout__left" id="layout-left">
+      <!-- Colonne gauche : Clicker + Stats -->
+      <aside class="layout__left">
         <section id="clicker-slot"></section>
-        <section id="prod-slot"></section>
-        <section id="casino-slot" style="display:none"></section>
-        <section id="trade-slot" style="display:none"></section>
-        <section id="puzzle-slot" style="display:none"></section>
-      </aside>
-
-      <section class="layout__center">
         <div class="stats-card">
           <div class="stats-card__row">
-            <span class="stats-label">Total earned</span>
+            <span class="stats-label" id="label-total">Total gagné</span>
             <span class="stats-value mono" id="stat-total">0</span>
           </div>
           <div class="stats-card__row">
-            <span class="stats-label">BPS</span>
+            <span class="stats-label" id="label-bps">BPS</span>
             <span class="stats-value mono" id="stat-bps">0</span>
           </div>
           <div class="stats-card__row">
-            <span class="stats-label">BPC</span>
+            <span class="stats-label" id="label-bpc">BPC</span>
             <span class="stats-value mono" id="stat-bpc">0</span>
           </div>
           <div class="stats-card__row">
-            <span class="stats-label">Global ×</span>
+            <span class="stats-label" id="label-multi">Multiplicateur</span>
             <span class="stats-value mono" id="stat-multi">1.00×</span>
           </div>
           <div class="stats-card__row" id="burst-row" style="display:none">
-            <span class="stats-label burst-label">⚡ BURST</span>
+            <span class="stats-label burst-label" id="label-burst">⚡ BURST</span>
             <span class="stats-value mono burst-value" id="stat-burst"></span>
           </div>
           <div class="stats-card__row">
-            <span class="stats-label">Phase</span>
-            <span class="stats-value mono" id="stat-phase">I — Garage Hacker</span>
+            <span class="stats-label" id="label-phase">Phase</span>
+            <span class="stats-value mono" id="stat-phase">I — Pirate Garage</span>
           </div>
         </div>
+      </aside>
 
-        <div id="twitch-badge-slot" class="twitch-slot"></div>
+      <!-- Colonne centre : Générateurs + Casino -->
+      <section class="layout__center">
+        <section id="prod-slot"></section>
+        <section id="casino-slot" style="display:none"></section>
       </section>
 
+      <!-- Colonne droite : Projets + Missions + Leaderboard -->
       <aside class="layout__right">
         <section id="projects-slot"></section>
+        <section id="missions-slot"></section>
+        <section id="leaderboard-slot"></section>
       </aside>
     </main>
   `;
@@ -70,22 +74,22 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   mountClicker(root.querySelector('#clicker-slot')!);
   mountProduction(root.querySelector('#prod-slot')!);
   mountProjects(root.querySelector('#projects-slot')!);
+  mountMissions(root.querySelector('#missions-slot')!);
+  mountLeaderboard(root.querySelector('#leaderboard-slot')!);
   startMiniGameManager();
   startPhaseManager();
 
   if (config.twitchClientId && config.twitchChannel) {
     startTwitchPoller({ clientId: config.twitchClientId, channelName: config.twitchChannel });
   }
-  mountTwitchBadge(root.querySelector('#twitch-badge-slot')!);
+  // Le badge Twitch est monté dans le slot du header (créé par Header.ts)
+  const twitchSlot = document.querySelector<HTMLElement>('#twitch-badge-slot');
+  if (twitchSlot) mountTwitchBadge(twitchSlot);
 
   // ── Dynamic module reveal (when projects unlock them) ──────────────────────
   const casinoSlot = root.querySelector<HTMLElement>('#casino-slot')!;
-  const tradeSlot = root.querySelector<HTMLElement>('#trade-slot')!;
-  const puzzleSlot = root.querySelector<HTMLElement>('#puzzle-slot')!;
 
   let casinoMounted = false;
-  let tradeMounted = false;
-  let puzzleMounted = false;
 
   function maybeUnlockModules(): void {
     const state = store.getState();
@@ -95,20 +99,6 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       casinoSlot.style.display = '';
       mountCasino(casinoSlot);
       casinoMounted = true;
-    }
-
-    // Trade: unlock when "market_access" project is purchased
-    if (!tradeMounted && state.projects.find(p => p.id === 'market_access')?.purchased) {
-      tradeSlot.style.display = '';
-      mountTrade(tradeSlot);
-      tradeMounted = true;
-    }
-
-    // Puzzle: unlock when "puzzle_framework" project is purchased
-    if (!puzzleMounted && state.projects.find(p => p.id === 'puzzle_framework')?.purchased) {
-      puzzleSlot.style.display = '';
-      mountPuzzle(puzzleSlot);
-      puzzleMounted = true;
     }
   }
 
@@ -124,7 +114,24 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   const statBurst  = root.querySelector<HTMLElement>('#stat-burst')!;
   const statPhase  = root.querySelector<HTMLElement>('#stat-phase')!;
 
+  // Label elements for i18n
+  const labelTotal = root.querySelector<HTMLElement>('#label-total')!;
+  const labelBps   = root.querySelector<HTMLElement>('#label-bps')!;
+  const labelBpc   = root.querySelector<HTMLElement>('#label-bpc')!;
+  const labelMulti = root.querySelector<HTMLElement>('#label-multi')!;
+  const labelBurst = root.querySelector<HTMLElement>('#label-burst')!;
+  const labelPhase = root.querySelector<HTMLElement>('#label-phase')!;
+
   const PHASE_NAMES = ['', 'I', 'II', 'III', 'IV', 'V'];
+
+  function updateLabels(): void {
+    labelTotal.textContent = t('stat.total_earned');
+    labelBps.textContent   = t('stat.bps');
+    labelBpc.textContent   = t('stat.bpc');
+    labelMulti.textContent = t('stat.global_multi');
+    labelBurst.textContent = t('stat.burst');
+    labelPhase.textContent = t('stat.phase');
+  }
 
   function renderStats(): void {
     const state = store.getState();
@@ -137,7 +144,8 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     statBpc.textContent    = formatNumber(store.getEffectiveBPC()) + ' /click';
     statPhase.textContent  = `${PHASE_NAMES[phase]} — ${phaseInfo.title}`;
 
-    const totalMulti = m.click * m.passive * m.global * m.twitch;
+    // Multiplicateur effectif sur la production passive (BPS)
+    const totalMulti = store.getPassiveMultiplier();
     statMulti.textContent = formatNumber(totalMulti) + '×';
 
     const burstActive = store.isMinigameActive();
@@ -146,15 +154,14 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       const rem = Math.max(0, Math.ceil((m.minigameEndsAt - Date.now()) / 1000));
       statBurst.textContent = `×${m.minigame} · ${rem}s`;
     }
-
-    // Apply quantum phase styling in Phase 5
-    if (phase === 5) {
-      root.setAttribute('data-phase', '5');
-    } else {
-      root.removeAttribute('data-phase');
-    }
   }
 
+  // Update labels on language change and initial render
+  updateLabels();
+  store.subscribe(updateLabels);
   store.subscribe(renderStats);
   renderStats();
+
+  // Expose store to window for dev console commands
+  (window as any).store = store;
 }

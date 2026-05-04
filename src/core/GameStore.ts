@@ -7,6 +7,7 @@ function defaultState(): GameState {
   return {
     bits: 0,
     totalBitsEarned: 0,
+    totalClicks: 0,
     clicker: { comboCount: 0, comboMultiplier: 1, lastClickTime: 0 },
     generators: BALANCE.generators.map(g => ({ id: g.id, owned: 0 })),
     projects: BALANCE.projects.map(p => ({ id: p.id, purchased: false })),
@@ -19,6 +20,7 @@ function defaultState(): GameState {
     lastPhase: 1,
     lastSaveTime: Date.now(),
     lastTickTime: Date.now(),
+    language: 'fr',  // default to French
   };
 }
 
@@ -46,6 +48,11 @@ class GameStore {
     this.state.bits += raw;
     this.state.totalBitsEarned += raw;
     this.notify();
+  }
+
+  incrementClicks(): void {
+    this.state.totalClicks += 1;
+    // No notify — Clicker already calls addBits which notifies
   }
 
   spendBits(amount: number): boolean {
@@ -249,6 +256,18 @@ class GameStore {
       s.twitch.lastChecked = Date.now();
       s.multipliers.twitch = isLive ? BALANCE.twitch.liveMultiplier : 1;
     });
+  }
+
+  // ── Language ───────────────────────────────────────────────────────────────
+
+  setLanguage(lang: 'en' | 'fr'): void {
+    this.setState(s => {
+      s.language = lang;
+    });
+  }
+
+  getLanguage(): 'en' | 'fr' {
+    return this.state.language;
   }
 
   // ── Save / Load ───────────────────────────────────────────────────────────

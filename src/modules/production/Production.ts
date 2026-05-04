@@ -1,10 +1,20 @@
 import { store } from '../../core/GameStore.js';
 import { BALANCE, formatNumber, generatorCost } from '../../core/balance.js';
 
+function getSellPrice(genId: string): number {
+  const gen = BALANCE.generators.find(g => g.id === genId)!;
+  const gs = store.getState().generators.find(g => g.id === genId)!;
+  return Math.floor(gen.baseCost * Math.pow(gen.growthRate, gs.owned) * 0.5);
+}
+
+function isTradeUnlocked(): boolean {
+  return !!store.getState().projects.find(p => p.id === 'market_access')?.purchased;
+}
+
 export function mountProduction(container: HTMLElement): () => void {
   container.innerHTML = `
     <div class="production-panel">
-      <h2 class="panel-title">Generators</h2>
+      <h2 class="panel-title">Générateurs</h2>
       <div id="generators-list" class="generators-list"></div>
     </div>
   `;
@@ -17,11 +27,11 @@ export function mountProduction(container: HTMLElement): () => void {
   function structSig(): string {
     const s = store.getState();
     const ownedCounts = s.generators.map(g => g.owned).join(',');
-    // Track which generators are currently visible (unlocked), not exact bits
     const unlockedGens = BALANCE.generators.map(gen =>
       s.totalBitsEarned >= gen.unlockAt ? '1' : '0'
     ).join('');
-    return ownedCounts + '|' + unlockedGens + '|' + Math.floor(s.multipliers.passive);
+    const tradeActive = s.projects.find(p => p.id === 'market_access')?.purchased ? '1' : '0';
+    return ownedCounts + '|' + unlockedGens + '|' + Math.floor(s.multipliers.passive) + '|' + tradeActive;
   }
 
   /** Full DOM rebuild — only called when a purchase or unlock happens */
@@ -39,6 +49,9 @@ export function mountProduction(container: HTMLElement): () => void {
       const canAfford = state.bits >= cost;
       const bps = gs.owned * gen.baseBps * store.getPassiveMultiplier();
 
+      const tradeUnlocked = isTradeUnlocked();
+      const sellPrice = getSellPrice(gen.id);
+
       const card = document.createElement('div');
       card.className = `gen-card${canAfford ? ' gen-card--affordable' : ''}`;
       card.dataset.id = gen.id;
@@ -46,14 +59,14 @@ export function mountProduction(container: HTMLElement): () => void {
         <div class="gen-card__icon">${gen.emoji}</div>
         <div class="gen-card__info">
           <div class="gen-card__name">${gen.name}</div>
-          <div class="gen-card__desc">${gen.description}</div>
-          <div class="gen-card__bps mono">${gs.owned > 0 ? formatNumber(bps) + ' b/s' : 'idle'}</div>
+          <div class="gen-card__bps mono">${gs.owned > 0 ? formatNumber(bps) + ' b/s' : 'inactif'}</div>
+          ${tradeUnlocked && gs.owned > 0 ? `<button class="gen-sell-btn" data-sell="${gen.id}" data-price="${sellPrice}">Vendre ${formatNumber(sellPrice)}</button>` : ''}
         </div>
         <div class="gen-card__right">
           <div class="gen-card__owned mono">${gs.owned}</div>
           <button class="gen-btn${canAfford ? '' : ' gen-btn--disabled'}" data-buy="${gen.id}">
             <span class="gen-btn__cost mono">${formatNumber(cost)}</span>
-            <span class="gen-btn__label">BUY</span>
+            <span class="gen-btn__label">ACHETER</span>
           </button>
         </div>
       `;
@@ -110,11 +123,24 @@ export function mountProduction(container: HTMLElement): () => void {
     if (store.buyGenerator(id)) {
       const card = list.querySelector<HTMLElement>(`[data-id="${id}"]`);
       card?.classList.add('gen-card--bought');
-      // class removed on next fullRender (triggered by the purchase notify)
     }
   }
 
+  function handleSell(e: MouseEvent): void {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-sell]');
+    if (!btn) return;
+    const genId = btn.dataset.sell!;
+    const price = parseInt(btn.dataset.price || '0', 10);
+    const gs = store.getState().generators.find(g => g.id === genId)!;
+    if (gs.owned === 0) return;
+    store.setState(s => {
+      s.generators.find(g => g.id === genId)!.owned -= 1;
+    });
+    store.addBits(price);
+  }
+
   list.addEventListener('click', handleBuy);
+  list.addEventListener('click', handleSell);
   const unsub = store.subscribe(onStoreChange);
 
   // Initial render

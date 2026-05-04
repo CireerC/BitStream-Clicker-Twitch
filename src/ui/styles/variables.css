@@ -1,25 +1,24 @@
 :root {
-  /* Palette — Pikachu-inspired with Quantum aesthetic for late game */
-  /* Phase 1-4: Warm yellow (Pikachu) on dark background (simplistic) */
-  /* Phase 5+: Quantum purple glitch effect (complex) */
+  /* Palette — Minimaliste black/white (inspired by Universal Paperclips) */
+  /* Clean, minimal aesthetic with minimal color usage */
 
-  --bg-0:    #07080d;   /* deepest background */
-  --bg-1:    #0f1117;   /* panel background */
-  --bg-2:    #181b25;   /* card background */
-  --bg-3:    #1f2333;   /* interactive surface */
+  --bg-0:    #000000;   /* deepest background — pure black */
+  --bg-1:    #0a0a0a;   /* panel background — near black */
+  --bg-2:    #141414;   /* card background — dark gray */
+  --bg-3:    #1f1f1f;   /* interactive surface — lighter gray */
 
-  /* Primary accent: Pikachu yellow (#FFD700) replaces teal */
-  --accent:  #ffd700;   /* pikachu yellow — primary CTA, interact */
-  --accent2: #ff5e3a;   /* hot orange — danger / burst / casino */
-  --accent3: #a78bfa;   /* quantum purple — projects / advanced */
-  --gold:    #ffc000;   /* bright yellow accent — rewards */
+  /* Primary accent: White for primary interactions */
+  --accent:  #ffffff;   /* white — primary CTA, interact */
+  --accent2: #ff4444;   /* minimal red — danger / warnings only */
+  --accent3: #888888;   /* neutral gray — secondary emphasis */
+  --gold:    #dddddd;   /* light gray — rewards / success state */
 
-  --text-0: #f0f2ff;    /* primary text */
-  --text-1: #9ca3af;    /* secondary / muted */
-  --text-2: #4b5563;    /* disabled */
+  --text-0: #ffffff;    /* primary text — white */
+  --text-1: #999999;    /* secondary / muted — medium gray */
+  --text-2: #555555;    /* disabled — dark gray */
 
-  --border:  #232738;
-  --border-accent: rgba(255, 215, 0, 0.2);
+  --border:  #333333;
+  --border-accent: rgba(255, 255, 255, 0.1);
 
   /* Typography */
   --font-ui:   'Inter', system-ui, sans-serif;
@@ -40,11 +39,5 @@
   /* Transitions */
   --t-fast: 120ms ease;
   --t-med:  250ms ease;
-}
-
-/* Quantum Phase 5+ overrides (glitchy effect, purple accent becomes primary) */
-[data-phase="5"] {
-  --accent: #a78bfa;    /* quantum purple becomes primary in endgame */
-  --gold: #e879f9;      /* magenta accent */
 }
 

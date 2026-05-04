@@ -121,6 +121,7 @@ export function startMiniGameManager(): () => void {
     const el = document.createElement('div');
     el.className = 'mg-card';
     const durationSec = BALANCE.minigames.durationMs / 1000;
+    let isDismissing = false;  // Prevent double-dismiss
 
     el.innerHTML = `
       <div class="mg-card__header">
@@ -143,13 +144,19 @@ export function startMiniGameManager(): () => void {
     const closeBtn= el.querySelector<HTMLButtonElement>('#mg-close')!;
 
     let remaining = durationSec;
+    let resultTimer: number | null = null;
     const countdown = setInterval(() => {
       remaining--;
       timerEl.textContent = String(remaining);
       if (remaining <= 0) { clearInterval(countdown); onLose(); }
     }, 1000);
 
-    closeBtn.addEventListener('click', () => { clearInterval(countdown); cleanupGame?.(); dismiss(false); });
+    closeBtn.addEventListener('click', () => {
+      clearInterval(countdown);
+      if (resultTimer !== null) clearTimeout(resultTimer);
+      cleanupGame?.();
+      dismiss(false);
+    });
 
     function onWin(): void {
       clearInterval(countdown);
@@ -159,6 +166,7 @@ export function startMiniGameManager(): () => void {
     }
 
     function onLose(): void {
+      clearInterval(countdown);
       cleanupGame?.();
       showResult(false);
     }
@@ -176,10 +184,13 @@ export function startMiniGameManager(): () => void {
            </div>`
         : `<div class="mg-result mg-result--lose"><span>💀 Too slow!</span></div>`;
 
-      setTimeout(() => dismiss(true), 2200);
+      resultTimer = window.setTimeout(() => { dismiss(true); }, 2200);
     }
 
     function dismiss(scheduleAfter: boolean): void {
+      if (isDismissing) return;  // Already dismissing, prevent double-dismiss
+      isDismissing = true;
+
       el.classList.add('mg-card--out');
       el.addEventListener('animationend', () => {
         el.remove();

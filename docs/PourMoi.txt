@@ -1,0 +1,16 @@
+Un fois qu'il y a un pop up du genre math sequence ou key sequence, quand j'appuye sur la croix apres l'expiration du temps elle ne veut pas se fermer
+
+J'aimerai bien faire un refonte du jeu et plus me focus sur faire un jeu qui repose sur les modules et donc elever le systeme de generateru et utiliser les clicker comme une source primitive et lente de generation de bit. Il faudrai qu'on puisse mise autant qu'on veut au machine "casino". et pour les autres machines  (pose moi des questions si tu veux pour vriament avoir un systems clair et fun a jouer, proporse des idees )
+
+Le blackjack est cassé, y'a aucune animation de carte, le croupier affiche toujours un ?, on a toiujours 15, on peut pas split coubler stand etc 
+
+pour le jeu de carte je ne pensais pas forcement a une roue avec des symbole comme ça mais plus tu mises sur coeur par exmple et siça tombe dessus tu gaggnes 
+
+l'affichae de la roue de la fortune est complement cassé 
+
+l'affichage du x12 fait blanc sur bleu donc dure de lire
+
+les modules externe du genre math si on repond faut on a un 'too slow" j'aimerai plus un truc du genre FAUX
+
+Je veux que l'app soit entierement en fraicais pas d'anglais 
+

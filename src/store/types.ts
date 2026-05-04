@@ -40,6 +40,7 @@ export interface ResearchState {
 export interface GameState {
   bits: number;
   totalBitsEarned: number;
+  totalClicks: number;
   clicker: ClickerState;
   generators: GeneratorState[];
   projects: ProjectState[];
@@ -49,4 +50,5 @@ export interface GameState {
   lastPhase: number;         // highest phase reached (for notifications)
   lastSaveTime: number;
   lastTickTime: number;
+  language: 'en' | 'fr';     // current language preference
 }

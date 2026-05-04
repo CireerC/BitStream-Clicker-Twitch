@@ -5,7 +5,9 @@
       "Bash(npx tsc *)",
       "Bash(npm run *)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(curl -s \"http://localhost:5173/src/ui/App.ts\")"
+      "Bash(curl -s \"http://localhost:5173/src/ui/App.ts\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\__Cours\\\\4A\\\\Projet Jeu Incremental Twitch\\\\src\\\\\" -Recurse -File | Select-Object FullName)",
+      "PowerShell(head -30)"
     ]
   }
 }

@@ -27,7 +27,7 @@ export const BALANCE = {
   clicker: {
     baseBitsPerClick: 1,
     comboWindowMs: 500,       // clicks within this gap count toward combo
-    maxComboMultiplier: 8,    // raised to 12 by Combo Protocol research
+    maxComboMultiplier: 12,   // max combo multiplier reached at 20 clicks
     clicksToMaxCombo: 20,
     comboDecayMs: 1200,
   },
@@ -205,17 +205,6 @@ export const BALANCE = {
       effect: { unlocks: 'casino' },
       requires: [] as string[],
     },
-    {
-      id: 'puzzle_framework',
-      name: 'Puzzle Framework',
-      description: 'Unlock Tetris-like Puzzle Module: arrange blocks for bonuses.',
-      category: 'module' as const,
-      cost: 80_000,
-      unlockAt: 150_000,
-      phase: 3,
-      effect: { unlocks: 'puzzle' },
-      requires: [] as string[],
-    },
     // ── Phase 4 (Enterprise Scale) ────────────────────────────────────────
     {
       id: 'ai_trading',
@@ -249,7 +238,7 @@ export const BALANCE = {
       unlockAt: 50_000_000,
       phase: 5,
       effect: { enabled: 'module_sync' },
-      requires: ['market_access', 'casino_charter', 'puzzle_framework'],
+      requires: ['market_access', 'casino_charter'],
     },
     {
       id: 'endgame_protocol',

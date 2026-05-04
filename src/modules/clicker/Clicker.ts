@@ -5,9 +5,9 @@ export function mountClicker(container: HTMLElement): () => void {
   container.innerHTML = `
     <div class="clicker-panel">
       <div class="clicker-core">
-        <button id="main-btn" class="click-btn" aria-label="Click to earn bits">
+        <button id="main-btn" class="click-btn" aria-label="Cliquer pour gagner des bits">
           <span class="click-btn__icon">⚡</span>
-          <span class="click-btn__label">CLICK</span>
+          <span class="click-btn__label">CLIC</span>
         </button>
         <div class="combo-bar">
           <div class="combo-bar__fill" id="combo-fill" style="width:0%"></div>
@@ -16,7 +16,7 @@ export function mountClicker(container: HTMLElement): () => void {
       </div>
       <div class="clicker-stats">
         <div class="stat-row">
-          <span class="stat-label">Per click</span>
+          <span class="stat-label">Par clic</span>
           <span class="stat-value mono" id="bpc-display">0</span>
         </div>
       </div>
@@ -33,6 +33,7 @@ export function mountClicker(container: HTMLElement): () => void {
   function handleClick(e: MouseEvent | TouchEvent): void {
     const bpc = store.getEffectiveBPC();
     store.addBits(bpc);
+    store.incrementClicks();
 
     spawnFloater(btn, bpc);
     btn.classList.remove('click-btn--pop');
