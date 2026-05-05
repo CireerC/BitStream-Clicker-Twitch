@@ -3,6 +3,7 @@ import { mountApp } from './ui/App.js';
 import { loadGame, startAutoSave, getOfflineReport } from './core/SaveSystem.js';
 import { startGameLoop } from './core/GameLoop.js';
 import { showOfflineModal } from './ui/OfflineModal.js';
+import { maybeShowUsernameModal } from './ui/UsernameModal.js';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 // Expose Twitch token for the API module (avoids bundling secrets in code)
@@ -30,7 +31,10 @@ startGameLoop();
 // Start auto-save (every 10s + beforeunload)
 startAutoSave();
 
-// Show offline earnings modal after first render
-if (offlineReport && offlineReport.bitsEarned > 1) {
-  requestAnimationFrame(() => showOfflineModal(offlineReport));
-}
+// Show modals after first render (username must come first if no name saved)
+requestAnimationFrame(() => {
+  maybeShowUsernameModal();
+  if (offlineReport && offlineReport.bitsEarned > 1) {
+    showOfflineModal(offlineReport);
+  }
+});

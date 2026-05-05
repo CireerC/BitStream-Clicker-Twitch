@@ -13,7 +13,6 @@ import { startTwitchPoller, mountTwitchBadge } from '../integrations/twitch/Twit
 import { store } from '../core/GameStore.js';
 import { initI18n, t } from '../core/i18n.js';
 import { BALANCE, formatNumber } from '../core/balance.js';
-import { maybeShowUsernameModal } from './UsernameModal.js';
 
 interface AppConfig {
   twitchClientId?: string;
@@ -22,7 +21,6 @@ interface AppConfig {
 
 export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   initI18n(store);
-  maybeShowUsernameModal();
   root.innerHTML = `
     <div id="hdr"></div>
     <main class="layout">
