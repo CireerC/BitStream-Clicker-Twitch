@@ -1,14 +1,120 @@
 import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
 
-type GameType = 'blackjack' | 'gamble' | 'wheel' | 'rush';
+// ── Types cartes ──────────────────────────────────────────────────────────────
+type Suit = '♠' | '♣' | '♥' | '♦';
+type Rank = 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
+interface Card { suit: Suit; rank: Rank; faceDown?: boolean; }
 
-interface GameResult {
-  game: GameType;
-  won: boolean;
-  amount: number;
-  timestamp: number;
+const SUITS: Suit[] = ['♠', '♣', '♥', '♦'];
+const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+// 6 decks like a real casino table
+function new6Deck(): Card[] {
+  const single = SUITS.flatMap(s => RANKS.map(r => ({ suit: s, rank: r })));
+  return ([] as Card[]).concat(...Array(6).fill(0).map(() => single.map(c => ({ ...c }))));
 }
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function cardVal(c: Card): number {
+  if (['J', 'Q', 'K'].includes(c.rank)) return 10;
+  if (c.rank === 'A') return 11;
+  return parseInt(c.rank);
+}
+
+function handVal(cards: Card[]): number {
+  const visible = cards.filter(c => !c.faceDown);
+  let t = visible.reduce((s, c) => s + cardVal(c), 0);
+  let aces = visible.filter(c => c.rank === 'A').length;
+  while (t > 21 && aces-- > 0) t -= 10;
+  return t;
+}
+
+function cardHTML(c: Card): string {
+  if (c.faceDown) return `<div class="bj-card bj-card--back"></div>`;
+  const red = c.suit === '♥' || c.suit === '♦';
+  return `<div class="bj-card${red ? ' bj-card--red' : ''}">
+    <div class="bj-card-tl">${c.rank}<br><span>${c.suit}</span></div>
+    <div class="bj-card-ct">${c.suit}</div>
+    <div class="bj-card-br">${c.rank}<br><span>${c.suit}</span></div>
+  </div>`;
+}
+
+// ── Secteurs de la roue ───────────────────────────────────────────────────────
+// EV ≈ 21.5/8 = 2.7 (légèrement favorable au joueur, jackpot raisonnable à ×10)
+const WHEEL = [
+  { label: 'PERTE',  mult: 0,   col: '#881111', txt: '#fff' },
+  { label: '×0.5',  mult: 0.5, col: '#333333', txt: '#fff' },
+  { label: 'PERTE', mult: 0,   col: '#aa2222', txt: '#fff' },
+  { label: '×1',    mult: 1,   col: '#555555', txt: '#fff' },
+  { label: '×2',    mult: 2,   col: '#888888', txt: '#000' },
+  { label: '×3',    mult: 3,   col: '#bbbbbb', txt: '#000' },
+  { label: '×5',    mult: 5,   col: '#e8e8e8', txt: '#000' },
+  { label: '💎',    mult: 10,  col: '#ffcc00', txt: '#000' },
+];
+
+function drawWheel(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number): void {
+  const n = WHEEL.length;
+  const slice = (2 * Math.PI) / n;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  for (let i = 0; i < n; i++) {
+    const s = WHEEL[i];
+    const a0 = rot + i * slice - Math.PI / 2;
+    const a1 = a0 + slice;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = s.col;
+    ctx.fill();
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const mid = a0 + slice / 2;
+    ctx.save();
+    ctx.translate(cx + Math.cos(mid) * r * 0.68, cy + Math.sin(mid) * r * 0.68);
+    ctx.rotate(mid + Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = s.txt;
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(s.label, 0, 0);
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, 2 * Math.PI);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+// ── Calcul targetRot correct (corrige le bug aiguille entre 2 secteurs) ───────
+// Pour que le secteur targetIdx soit centré à 12h (angle -π/2 canvas = haut),
+// il faut : rot + (targetIdx + 0.5) * slice ≡ 0 (mod 2π)
+function computeWheelTarget(currentRot: number, targetIdx: number): number {
+  const slice = (2 * Math.PI) / WHEEL.length;
+  const wantedNorm = ((-(targetIdx + 0.5) * slice) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  const currentNorm = ((currentRot % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const extra = ((wantedNorm - currentNorm) + 2 * Math.PI) % (2 * Math.PI);
+  const spins = (4 + Math.floor(Math.random() * 4)) * 2 * Math.PI;
+  return currentRot + spins + extra;
+}
+
+type GameType = 'blackjack' | 'suits' | 'wheel';
 
 export function mountCasino(container: HTMLElement): () => void {
   container.innerHTML = `
@@ -22,9 +128,8 @@ export function mountCasino(container: HTMLElement): () => void {
       </div>
       <div class="casino-tabs">
         <button class="casino-tab casino-tab--active" data-game="blackjack">🃏 Blackjack</button>
-        <button class="casino-tab" data-game="gamble">♠ Cartes</button>
+        <button class="casino-tab" data-game="suits">♥ Couleurs</button>
         <button class="casino-tab" data-game="wheel">🎡 Roue</button>
-        <button class="casino-tab" data-game="rush">⚡ Pikachu</button>
       </div>
       <div class="casino-content" id="casino-content"></div>
       <div class="casino-history" id="casino-history"></div>
@@ -36,455 +141,556 @@ export function mountCasino(container: HTMLElement): () => void {
   const historyEl = container.querySelector<HTMLElement>('#casino-history')!;
   const tabs = container.querySelectorAll<HTMLButtonElement>('.casino-tab');
 
+  let currentGame: GameType = 'blackjack';
+  let gameInProgress = false;
+  const history: Array<{ game: string; won: boolean; amount: number }> = [];
+
   function showError(msg: string): void {
-    const existing = contentEl.querySelector('.casino-error');
-    if (existing) existing.remove();
+    const ex = contentEl.querySelector('.casino-error');
+    if (ex) ex.remove();
     const el = document.createElement('div');
     el.className = 'casino-error';
     el.textContent = msg;
     contentEl.prepend(el);
-    setTimeout(() => el.remove(), 2000);
+    setTimeout(() => el.remove(), 2500);
   }
 
-  let currentGame: GameType = 'blackjack';
-  let history: GameResult[] = [];
-  let gameInProgress = false;
+  function getBet(inputId: string): number {
+    const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
+    return Math.max(1, parseInt(inp?.value || '1') || 1);
+  }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // GAME 1: BLACKJACK
-  // ──────────────────────────────────────────────────────────────────────────
-
-  function blackjackUI(): string {
+  function betHTML(inputId: string, defaultVal = 100): string {
     return `
-      <div class="casino-game-blackjack">
-        <div class="bj-section">
-          <div class="bj-label">Dealer</div>
-          <div class="bj-cards" id="bj-dealer">
-            <div class="bj-card">?</div>
-          </div>
+      <div class="bet-wrap">
+        <div class="bet-quicks">
+          <button class="bet-quick" data-pct="10">10%</button>
+          <button class="bet-quick" data-pct="25">25%</button>
+          <button class="bet-quick" data-pct="50">50%</button>
+          <button class="bet-quick" data-pct="100">MAX</button>
         </div>
-        <div class="bj-section">
-          <div class="bj-label">You</div>
-          <div class="bj-cards" id="bj-player">
-            <div class="bj-card">K</div>
-            <div class="bj-card">5</div>
-          </div>
-          <div class="bj-total" id="bj-total">15</div>
-        </div>
-        <div class="bj-controls">
-          <select id="bj-bet" class="bj-input">
-            <option value="50">50 Bits</option>
-            <option value="200">200 Bits</option>
-            <option value="500">500 Bits</option>
-            <option value="1000">1000 Bits</option>
-          </select>
-          <button class="casino-btn" id="bj-play">Jouer</button>
-        </div>
-        <div class="bj-result" id="bj-result" style="display:none"></div>
+        <input type="number" id="${inputId}" class="bet-input" value="${defaultVal}" min="1">
       </div>
     `;
   }
 
-  function playBlackjack(): void {
-    if (gameInProgress) return;
+  function attachBetQuicks(inputId: string): void {
+    contentEl.querySelectorAll<HTMLElement>('.bet-quick').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pct = parseInt(btn.dataset.pct || '100');
+        const max = Math.floor(store.getState().bits);
+        const val = Math.max(1, Math.floor(max * pct / 100));
+        const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
+        if (inp) inp.value = String(val);
+      });
+    });
+  }
+
+  function addHistory(game: string, won: boolean, amount: number): void {
+    history.unshift({ game, won, amount });
+    updateHistory();
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // JEU 1 : BLACKJACK (6 decks, split, animation BJ)
+  // ───────────────────────────────────────────────────────────────────────────
+  let bjDeck: Card[] = [];
+  let bjHands: Card[][] = [[]];   // 1 hand normally, 2 after split
+  let bjHandBets: number[] = [100];
+  let bjHandIdx = 0;              // hand currently being played
+  let bjDealer: Card[] = [];
+  let bjBet = 100;                // mise de la prochaine partie
+  let bjPhase: 'bet' | 'play' | 'done' = 'bet';
+
+  function bjPlayer(): Card[] { return bjHands[bjHandIdx]; }
+  function bjActiveBet(): number { return bjHandBets[bjHandIdx]; }
+  function bjSplitActive(): boolean { return bjHands.length > 1; }
+
+  function bjUpdateBetDisplay(bet: number): void {
+    const el = contentEl.querySelector<HTMLElement>('#bj-bet-display');
+    if (el) el.textContent = formatNumber(bet) + ' bits';
+  }
+
+  function bjRender(): void {
+    const dlCardsEl = contentEl.querySelector<HTMLElement>('#bj-dealer-cards');
+    const dlTotalEl = contentEl.querySelector<HTMLElement>('#bj-dealer-total');
+    const ctrlEl    = contentEl.querySelector<HTMLElement>('#bj-controls');
+    const msgEl     = contentEl.querySelector<HTMLElement>('#bj-msg');
+    if (!dlCardsEl || !ctrlEl || !msgEl) return;
+
+    if (bjPhase === 'bet') {
+      dlCardsEl.innerHTML = '<div class="bj-placeholder">♠ ♣ ♥ ♦</div>';
+      const plCardsEl = contentEl.querySelector<HTMLElement>('#bj-player-cards');
+      if (plCardsEl) plCardsEl.innerHTML = '<div class="bj-placeholder">Distribuez pour commencer</div>';
+      if (dlTotalEl) dlTotalEl.textContent = '';
+      msgEl.innerHTML = '';
+      const betDisplay = contentEl.querySelector<HTMLElement>('#bj-bet-display');
+      if (betDisplay) betDisplay.textContent = '—';
+      ctrlEl.innerHTML = `
+        ${betHTML('bj-bet', bjBet)}
+        <button class="casino-btn" id="bj-deal">🃏 Distribuer</button>
+      `;
+      attachBetQuicks('bj-bet');
+      contentEl.querySelector('#bj-deal')?.addEventListener('click', bjDeal);
+
+    } else if (bjPhase === 'play') {
+      dlCardsEl.innerHTML = bjDealer.map(c => cardHTML(c)).join('');
+      const dVisible = handVal(bjDealer.filter(c => !c.faceDown));
+      if (dlTotalEl) dlTotalEl.textContent = `${dVisible}${bjDealer.some(c => c.faceDown) ? ' + ?' : ''}`;
+
+      // Player hand(s)
+      const plCardsEl = contentEl.querySelector<HTMLElement>('#bj-player-cards');
+      const plTotalEl = contentEl.querySelector<HTMLElement>('#bj-player-total');
+      if (plCardsEl) {
+        if (bjSplitActive()) {
+          plCardsEl.innerHTML = bjHands.map((hand, i) => {
+            const active = i === bjHandIdx;
+            const val = handVal(hand);
+            return `<div class="bj-split-hand${active ? ' bj-split-hand--active' : ''}">
+              <div class="bj-split-label">Main ${i + 1} (${formatNumber(bjHandBets[i])} bits)${active ? ' ◀' : ''}</div>
+              <div class="bj-cards">${hand.map(c => cardHTML(c)).join('')}</div>
+              <div class="bj-total">${val}</div>
+            </div>`;
+          }).join('');
+          if (plTotalEl) plTotalEl.textContent = '';
+        } else {
+          plCardsEl.innerHTML = bjPlayer().map(c => cardHTML(c)).join('');
+          const pTotal = handVal(bjPlayer());
+          if (plTotalEl) plTotalEl.textContent = String(pTotal);
+        }
+      }
+
+      bjUpdateBetDisplay(bjActiveBet());
+
+      const pTotal = handVal(bjPlayer());
+      const canDouble = bjPlayer().length === 2 && store.getState().bits >= bjActiveBet();
+      const canSplit = bjPlayer().length === 2
+        && !bjSplitActive()
+        && bjPlayer()[0].rank === bjPlayer()[1].rank
+        && store.getState().bits >= bjActiveBet();
+      ctrlEl.innerHTML = `
+        <div class="bj-action-row">
+          <button class="casino-btn" id="bj-hit">Tirer</button>
+          <button class="casino-btn" id="bj-stand">Rester</button>
+          <button class="casino-btn${canDouble ? '' : ' casino-btn--disabled'}" id="bj-double">Doubler</button>
+          ${canSplit ? '<button class="casino-btn bj-btn-split" id="bj-split">Split</button>' : ''}
+        </div>
+        <div class="bj-total-row">Total : <span class="mono">${pTotal}</span></div>
+      `;
+      msgEl.innerHTML = '';
+      contentEl.querySelector('#bj-hit')?.addEventListener('click', bjHit);
+      contentEl.querySelector('#bj-stand')?.addEventListener('click', bjStand);
+      if (canDouble) contentEl.querySelector('#bj-double')?.addEventListener('click', bjDouble);
+      if (canSplit)  contentEl.querySelector('#bj-split')?.addEventListener('click', bjSplit);
+
+    } else { // done
+      bjDealer.forEach(c => { c.faceDown = false; });
+      dlCardsEl.innerHTML = bjDealer.map(c => cardHTML(c)).join('');
+      const dTotal = handVal(bjDealer);
+      if (dlTotalEl) dlTotalEl.textContent = String(dTotal);
+
+      const plCardsEl = contentEl.querySelector<HTMLElement>('#bj-player-cards');
+      if (plCardsEl) {
+        if (bjSplitActive()) {
+          plCardsEl.innerHTML = bjHands.map((hand, i) => `
+            <div class="bj-split-hand">
+              <div class="bj-split-label">Main ${i + 1}</div>
+              <div class="bj-cards">${hand.map(c => cardHTML(c)).join('')}</div>
+              <div class="bj-total">${handVal(hand)}</div>
+            </div>`).join('');
+        } else {
+          plCardsEl.innerHTML = bjPlayer().map(c => cardHTML(c)).join('');
+          const pTotal = handVal(bjPlayer());
+          const plTotalEl = contentEl.querySelector<HTMLElement>('#bj-player-total');
+          if (plTotalEl) plTotalEl.textContent = String(pTotal);
+        }
+      }
+      ctrlEl.innerHTML = `<button class="casino-btn" id="bj-again">Rejouer</button>`;
+      contentEl.querySelector('#bj-again')?.addEventListener('click', () => {
+        bjPhase = 'bet';
+        bjHands = [[]];
+        bjHandBets = [bjBet];
+        bjHandIdx = 0;
+        bjRender();
+      });
+    }
+  }
+
+  function bjDeal(): void {
+    bjBet = getBet('bj-bet');
+    if (store.getState().bits < bjBet) { showError('Bits insuffisants !'); return; }
+    store.spendBits(bjBet);
     gameInProgress = true;
 
-    const betSelect = contentEl.querySelector<HTMLSelectElement>('#bj-bet')!;
-    const bet = parseInt(betSelect.value);
-    const state = store.getState();
+    bjDeck = shuffle(new6Deck());
+    bjHands = [[{ ...bjDeck.pop()! }, { ...bjDeck.pop()! }]];
+    bjHandBets = [bjBet];
+    bjHandIdx = 0;
+    bjDealer = [{ ...bjDeck.pop()! }, { ...bjDeck.pop()!, faceDown: true }];
 
-    if (state.bits < bet) {
-      showError('Bits insuffisants !');
-      gameInProgress = false;
-      return;
+    bjPhase = 'play';
+    bjRender();
+
+    // Natural blackjack check
+    if (handVal(bjPlayer()) === 21) {
+      // Flash animation
+      const plCardsEl = contentEl.querySelector<HTMLElement>('#bj-player-cards');
+      if (plCardsEl) plCardsEl.classList.add('bj-blackjack-flash');
+
+      const msgEl = contentEl.querySelector<HTMLElement>('#bj-msg');
+      if (msgEl) msgEl.innerHTML = '<div class="bj-bj-banner">🃏 BLACKJACK ! 🃏</div>';
+
+      setTimeout(() => {
+        bjDealer.forEach(c => { c.faceDown = false; });
+        if (handVal(bjDealer) === 21) {
+          bjFinish([{ push: true, msg: 'Double Blackjack — Égalité !' }]);
+        } else {
+          bjFinish([{ won: true, bonus: true, msg: '🃏 Blackjack ! ×1.5 !' }]);
+        }
+      }, 1400);
     }
+  }
 
-    // Simple blackjack: player has K+5 (15), dealer plays
-    const playerTotal = 15;
-    const dealerCard = 5 + Math.floor(Math.random() * 5); // 5-9
-    const dealerTotal = dealerCard + (Math.random() < 0.6 ? 10 : 5); // Dealer hits on 16
-
-    let won = false;
-    let resultText = '';
-
-    if (dealerTotal > 21) {
-      won = true;
-      resultText = `Dealer busts (${dealerTotal})! You win!`;
-    } else if (playerTotal > dealerTotal) {
-      won = true;
-      resultText = `${playerTotal} vs ${dealerTotal} — You win!`;
-    } else if (playerTotal === dealerTotal) {
-      won = false;
-      resultText = `Push (${playerTotal}) — You lose your bet`;
-    } else {
-      won = false;
-      resultText = `${playerTotal} vs ${dealerTotal} — Dealer wins`;
+  function bjHit(): void {
+    bjPlayer().push({ ...bjDeck.pop()! });
+    bjRender();
+    const total = handVal(bjPlayer());
+    if (total > 21) {
+      setTimeout(() => {
+        const msgEl = contentEl.querySelector<HTMLElement>('#bj-msg');
+        if (msgEl) {
+          msgEl.innerHTML = `<div class="bj-result bj-result--lose">💥 Bust (${total}) !</div>`;
+        }
+        setTimeout(() => bjNextHandOrFinish(), 1000);
+      }, 300);
+    } else if (total === 21) {
+      setTimeout(() => bjStand(), 300);
     }
+  }
 
-    if (won) {
-      const reward = Math.floor(bet * 1.5);
-      store.addBits(reward);
-      history.unshift({ game: 'blackjack', won: true, amount: reward, timestamp: Date.now() });
+  function bjNextHandOrFinish(): void {
+    if (bjSplitActive() && bjHandIdx < bjHands.length - 1) {
+      // Switch to next split hand
+      bjHandIdx++;
+      bjRender();
     } else {
+      bjDealerPlay();
+    }
+  }
+
+  function bjStand(): void {
+    bjNextHandOrFinish();
+  }
+
+  function bjDealerPlay(): void {
+    bjDealer.forEach(c => { c.faceDown = false; });
+    bjRender();
+
+    function dealerDraw(): void {
+      if (handVal(bjDealer) < 17) {
+        setTimeout(() => {
+          bjDealer.push({ ...bjDeck.pop()! });
+          bjRender();
+          dealerDraw();
+        }, 650);
+      } else {
+        const d = handVal(bjDealer);
+        const results: Array<{ won?: boolean; push?: boolean; bonus?: boolean; msg: string }> = [];
+
+        bjHands.forEach((hand, i) => {
+          const p = handVal(hand);
+          if (p > 21) {
+            results.push({ won: false, msg: `Main ${bjHands.length > 1 ? i + 1 + ' : ' : ''}Bust (${p}) — Perdu` });
+          } else if (d > 21) {
+            results.push({ won: true, msg: `Main ${bjHands.length > 1 ? i + 1 + ' : ' : ''}Croupier bust — Gagné !` });
+          } else if (p > d) {
+            results.push({ won: true, msg: `Main ${bjHands.length > 1 ? i + 1 + ' : ' : ''}${p} > ${d} — Gagné !` });
+          } else if (p === d) {
+            results.push({ push: true, msg: `Main ${bjHands.length > 1 ? i + 1 + ' : ' : ''}Égalité (${p})` });
+          } else {
+            results.push({ won: false, msg: `Main ${bjHands.length > 1 ? i + 1 + ' : ' : ''}${p} < ${d} — Croupier gagne` });
+          }
+        });
+
+        setTimeout(() => bjFinish(results), 400);
+      }
+    }
+    dealerDraw();
+  }
+
+  function bjDouble(): void {
+    if (store.getState().bits < bjActiveBet()) { showError('Bits insuffisants pour doubler !'); return; }
+    store.spendBits(bjActiveBet());
+    bjHandBets[bjHandIdx] *= 2;
+    bjPlayer().push({ ...bjDeck.pop()! });
+    bjUpdateBetDisplay(bjHandBets[bjHandIdx]);
+    bjRender();
+    const total = handVal(bjPlayer());
+    if (total > 21) {
+      setTimeout(() => {
+        bjNextHandOrFinish();
+      }, 500);
+    } else {
+      setTimeout(() => bjStand(), 600);
+    }
+  }
+
+  function bjSplit(): void {
+    if (store.getState().bits < bjActiveBet()) { showError('Bits insuffisants pour splitter !'); return; }
+    store.spendBits(bjActiveBet());
+    const bet = bjHandBets[0];
+    // Create 2 hands from the 2 starting cards, each gets one more card
+    bjHands = [
+      [bjHands[0][0], { ...bjDeck.pop()! }],
+      [bjHands[0][1], { ...bjDeck.pop()! }],
+    ];
+    bjHandBets = [bet, bet];
+    bjHandIdx = 0;
+    bjRender();
+  }
+
+  interface BjResult { won?: boolean; push?: boolean; bonus?: boolean; msg: string; }
+
+  function bjFinish(results: BjResult[]): void {
+    bjPhase = 'done';
+    let totalNet = 0;
+
+    results.forEach((r, i) => {
+      const bet = bjHandBets[i];
+      if (r.won) {
+        const profit = r.bonus ? Math.floor(bet * 1.5) : bet;
+        store.addBits(bet + profit);
+        totalNet += profit;
+        addHistory('🃏', true, profit);
+      } else if (r.push) {
+        store.addBits(bet);
+        addHistory('🃏', true, 0);
+      } else {
+        totalNet -= bet;
+        addHistory('🃏', false, bet);
+      }
+    });
+
+    gameInProgress = false;
+    bjRender();
+    const msgEl = contentEl.querySelector<HTMLElement>('#bj-msg');
+    if (msgEl) {
+      const lines = results.map(r => {
+        const cls = r.won ? 'bj-result--win' : r.push ? 'bj-result--push' : 'bj-result--lose';
+        return `<div class="bj-result ${cls}">${r.msg}</div>`;
+      });
+      const netSign = totalNet >= 0 ? '+' : '';
+      lines.push(`<div class="bj-net-total">Net : ${netSign}${formatNumber(totalNet)} bits</div>`);
+      msgEl.innerHTML = lines.join('');
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // JEU 2 : COULEURS
+  // ───────────────────────────────────────────────────────────────────────────
+  let selectedSuit: Suit | null = null;
+
+  function suitsRender(): void {
+    contentEl.innerHTML = `
+      <div class="casino-game-suits">
+        <p class="suits-hint">Choisissez une couleur, puis misez. Bonne réponse → ×3</p>
+        <div class="suits-choices">
+          ${SUITS.map(s => {
+            const red = s === '♥' || s === '♦';
+            const active = selectedSuit === s;
+            return `<button class="suit-btn${red ? ' suit-btn--red' : ''}${active ? ' suit-btn--active' : ''}" data-suit="${s}">${s}</button>`;
+          }).join('')}
+        </div>
+        ${betHTML('suits-bet', 100)}
+        <button class="casino-btn${selectedSuit ? '' : ' casino-btn--disabled'}" id="suits-play">Miser</button>
+        <div id="suits-result" class="suits-result" style="display:none"></div>
+      </div>
+    `;
+
+    attachBetQuicks('suits-bet');
+
+    contentEl.querySelectorAll<HTMLElement>('.suit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedSuit = btn.dataset.suit as Suit;
+        contentEl.querySelectorAll('.suit-btn').forEach(b =>
+          b.classList.toggle('suit-btn--active', b === btn));
+        const playBtn = contentEl.querySelector<HTMLButtonElement>('#suits-play');
+        if (playBtn) playBtn.classList.remove('casino-btn--disabled');
+      });
+    });
+
+    contentEl.querySelector('#suits-play')?.addEventListener('click', () => {
+      if (!selectedSuit || gameInProgress) return;
+      const bet = getBet('suits-bet');
+      if (store.getState().bits < bet) { showError('Bits insuffisants !'); return; }
+      gameInProgress = true;
       store.spendBits(bet);
-      history.unshift({ game: 'blackjack', won: false, amount: bet, timestamp: Date.now() });
-    }
 
-    // Show result
-    const resultEl = contentEl.querySelector<HTMLElement>('#bj-result')!;
-    resultEl.textContent = resultText;
-    resultEl.style.display = 'block';
-    resultEl.className = `bj-result ${won ? 'bj-result--win' : 'bj-result--lose'}`;
+      const drawnSuit = SUITS[Math.floor(Math.random() * 4)];
+      const drawnRank = RANKS[Math.floor(Math.random() * 13)];
+      const drawn: Card = { suit: drawnSuit, rank: drawnRank };
+      const won = drawnSuit === selectedSuit;
+      const net = won ? bet * 2 : -bet; // ×3 return → net profit = +2×bet
+      const netSign = net >= 0 ? '+' : '';
 
-    setTimeout(() => {
-      gameInProgress = false;
-      renderGame(currentGame);
-      updateHistory();
-    }, 2000);
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // GAME 2: GAMBLE (SYMBOL SPINNING)
-  // ──────────────────────────────────────────────────────────────────────────
-
-  function gambleUI(): string {
-    return `
-      <div class="casino-game-gamble">
-        <div class="gamble-wheels">
-          <div class="gamble-wheel" id="gamble-w1">♠</div>
-          <div class="gamble-wheel" id="gamble-w2">♣</div>
-          <div class="gamble-wheel" id="gamble-w3">♥</div>
+      const resultEl = contentEl.querySelector<HTMLElement>('#suits-result')!;
+      resultEl.style.display = 'flex';
+      resultEl.innerHTML = `
+        <div class="suits-drawn">${cardHTML(drawn)}</div>
+        <div class="suits-verdict ${won ? 'suits-win' : 'suits-lose'}">
+          ${won
+            ? `✅ ${drawnSuit} — Gagné !<br><span class="mono">${netSign}${formatNumber(net)} bits nets</span>`
+            : `❌ ${drawnSuit} — Raté !<br><span class="mono">${netSign}${formatNumber(net)} bits</span>`}
         </div>
-        <div class="gamble-controls">
-          <select id="gamble-bet" class="gamble-input">
-            <option value="100">100 Bits (paire ×2)</option>
-            <option value="500">500 Bits (triple ×3)</option>
-            <option value="2000">2000 Bits (triple ×5 !)</option>
-          </select>
-          <button class="casino-btn" id="gamble-spin">Tourner !</button>
-        </div>
-        <div class="gamble-result" id="gamble-result" style="display:none"></div>
-      </div>
-    `;
-  }
+      `;
 
-  function playGamble(): void {
-    if (gameInProgress) return;
-    gameInProgress = true;
-
-    const betSelect = contentEl.querySelector<HTMLSelectElement>('#gamble-bet')!;
-    const bet = parseInt(betSelect.value);
-    const state = store.getState();
-
-    if (state.bits < bet) {
-      showError('Bits insuffisants !');
-      gameInProgress = false;
-      return;
-    }
-
-    const symbols = ['♠', '♣', '♥', '♦', '⭐'];
-    const result = [
-      symbols[Math.floor(Math.random() * symbols.length)],
-      symbols[Math.floor(Math.random() * symbols.length)],
-      symbols[Math.floor(Math.random() * symbols.length)],
-    ];
-
-    const w1 = contentEl.querySelector<HTMLElement>('#gamble-w1')!;
-    const w2 = contentEl.querySelector<HTMLElement>('#gamble-w2')!;
-    const w3 = contentEl.querySelector<HTMLElement>('#gamble-w3')!;
-
-    // Spinning animation
-    w1.style.animation = 'spin 0.5s';
-    w2.style.animation = 'spin 0.6s';
-    w3.style.animation = 'spin 0.7s';
-
-    setTimeout(() => {
-      w1.textContent = result[0];
-      w2.textContent = result[1];
-      w3.textContent = result[2];
-      w1.style.animation = 'none';
-      w2.style.animation = 'none';
-      w3.style.animation = 'none';
-
-      const match3 = result[0] === result[1] && result[1] === result[2];
-      const match2 = result[0] === result[1] || result[1] === result[2] || result[0] === result[2];
-
-      let won = false;
-      let reward = 0;
-      let resultText = '';
-
-      if (match3) {
-        won = true;
-        reward = bet * (bet === 2000 ? 5 : 2);
-        resultText = `🎉 Triple match! +${formatNumber(reward)} bits!`;
-        store.addBits(reward);
-        history.unshift({ game: 'gamble', won: true, amount: reward, timestamp: Date.now() });
-      } else if (match2) {
-        reward = Math.floor(bet * 0.5);
-        store.addBits(reward);
-        resultText = `Pair match — +${formatNumber(reward)} bits`;
-        history.unshift({ game: 'gamble', won: true, amount: reward, timestamp: Date.now() });
+      if (won) {
+        store.addBits(bet * 3);
+        addHistory('♥', true, bet * 2);
       } else {
-        resultText = `No match — Lose ${formatNumber(bet)} bits`;
-        store.spendBits(bet);
-        history.unshift({ game: 'gamble', won: false, amount: bet, timestamp: Date.now() });
+        addHistory('♥', false, bet);
       }
-
-      const resultEl = contentEl.querySelector<HTMLElement>('#gamble-result')!;
-      resultEl.textContent = resultText;
-      resultEl.style.display = 'block';
-      resultEl.className = `gamble-result ${match3 ? 'gamble-result--win' : match2 ? 'gamble-result--partial' : 'gamble-result--lose'}`;
 
       setTimeout(() => {
         gameInProgress = false;
-        renderGame(currentGame);
-        updateHistory();
-      }, 2000);
-    }, 700);
+        selectedSuit = null;
+        suitsRender();
+      }, 2500);
+    });
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // GAME 3: FORTUNE WHEEL
-  // ──────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // JEU 3 : ROUE DE LA FORTUNE (canvas + rotation corrigée)
+  // ───────────────────────────────────────────────────────────────────────────
+  let wheelRaf = 0;
+  let wheelRot = 0; // rotation absolue (jamais normalisée pour éviter le bug d'aiguille)
 
-  function wheelUI(): string {
-    return `
+  function wheelRender(): void {
+    contentEl.innerHTML = `
       <div class="casino-game-wheel">
-        <div class="wheel-container">
-          <div class="wheel" id="wheel">
-            <div class="wheel-segment" style="background: #ff4444;"><span>0.5×</span></div>
-            <div class="wheel-segment" style="background: #ffaa00;"><span>1×</span></div>
-            <div class="wheel-segment" style="background: #ffdd00;"><span>2×</span></div>
-            <div class="wheel-segment" style="background: #00ff44;"><span>3×</span></div>
-            <div class="wheel-segment" style="background: #00aaff;"><span>5×</span></div>
-            <div class="wheel-segment" style="background: #aa00ff;"><span>10×</span></div>
-            <div class="wheel-segment" style="background: #ffffff;"><span>Lose</span></div>
-            <div class="wheel-segment" style="background: #ffff00;"><span>💎 JP!</span></div>
-          </div>
-          <div class="wheel-pointer"></div>
+        <div class="wheel-canvas-wrap">
+          <canvas id="wheel-canvas" width="200" height="200" class="wheel-canvas"></canvas>
+          <div class="wheel-needle">▼</div>
         </div>
-        <div class="wheel-controls">
-          <select id="wheel-bet" class="wheel-input">
-            <option value="50">50 Bits</option>
-            <option value="200">200 Bits</option>
-            <option value="1000">1000 Bits</option>
-          </select>
-          <button class="casino-btn" id="wheel-spin">Faire tourner !</button>
-        </div>
-        <div class="wheel-result" id="wheel-result" style="display:none"></div>
+        ${betHTML('wheel-bet', 100)}
+        <button class="casino-btn" id="wheel-spin">🎡 Faire tourner !</button>
+        <div id="wheel-result" style="display:none" class="wheel-result-msg"></div>
       </div>
     `;
+    attachBetQuicks('wheel-bet');
+    const canvas = contentEl.querySelector<HTMLCanvasElement>('#wheel-canvas')!;
+    const ctx = canvas.getContext('2d')!;
+    drawWheel(ctx, 100, 100, 90, wheelRot);
+    contentEl.querySelector('#wheel-spin')?.addEventListener('click', wheelPlay);
   }
 
-  function playWheel(): void {
+  function wheelPlay(): void {
     if (gameInProgress) return;
-    gameInProgress = true;
-
-    const betSelect = contentEl.querySelector<HTMLSelectElement>('#wheel-bet')!;
-    const bet = parseInt(betSelect.value);
-    const state = store.getState();
-
-    if (state.bits < bet) {
-      showError('Bits insuffisants !');
-      gameInProgress = false;
-      return;
-    }
-
-    const outcomes = [
-      { mult: 0.5, label: '0.5×', jackpot: false },
-      { mult: 1, label: '1×', jackpot: false },
-      { mult: 2, label: '2×', jackpot: false },
-      { mult: 3, label: '3×', jackpot: false },
-      { mult: 5, label: '5×', jackpot: false },
-      { mult: 10, label: '10×', jackpot: false },
-      { mult: 0, label: 'Lose', jackpot: false },
-      { mult: 50, label: '💎 JACKPOT', jackpot: true },
-    ];
-
-    const spinIndex = Math.floor(Math.random() * outcomes.length);
-    const outcome = outcomes[spinIndex];
-
-    const wheel = contentEl.querySelector<HTMLElement>('#wheel')!;
-    wheel.style.animation = `spin-wheel ${2 + spinIndex * 0.1}s ease-out`;
-
-    setTimeout(() => {
-      wheel.style.animation = 'none';
-      wheel.style.transform = `rotate(${spinIndex * 45}deg)`;
-
-      let won = false;
-      let reward = 0;
-
-      if (outcome.mult > 0) {
-        won = true;
-        reward = Math.floor(bet * outcome.mult);
-        store.addBits(reward);
-        history.unshift({ game: 'wheel', won: true, amount: reward, timestamp: Date.now() });
-      } else {
-        store.spendBits(bet);
-        history.unshift({ game: 'wheel', won: false, amount: bet, timestamp: Date.now() });
-      }
-
-      const resultEl = contentEl.querySelector<HTMLElement>('#wheel-result')!;
-      resultEl.textContent = won ? `${outcome.label} — +${formatNumber(reward)} bits!` : `${outcome.label} — Lost ${formatNumber(bet)} bits`;
-      resultEl.style.display = 'block';
-      resultEl.className = `wheel-result ${won ? 'wheel-result--win' : 'wheel-result--lose'}`;
-
-      setTimeout(() => {
-        gameInProgress = false;
-        renderGame(currentGame);
-        updateHistory();
-      }, 2000);
-    }, 2000 + spinIndex * 100);
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // GAME 4: PENGUIN RUSH (TAP GAME)
-  // ──────────────────────────────────────────────────────────────────────────
-
-  function rushUI(): string {
-    return `
-      <div class="casino-game-rush">
-        <div class="rush-field" id="rush-field">
-          <div class="rush-player" id="rush-pikachu">⚡</div>
-          <div class="rush-score-overlay">Score: <span id="rush-score">0</span></div>
-        </div>
-        <div class="rush-info">
-          <div>Temps: <span id="rush-time">10</span>s</div>
-          <div>Clics: <span id="rush-score2">0</span></div>
-        </div>
-        <div class="rush-controls">
-          <select id="rush-bet" class="rush-input">
-            <option value="100">100 Bits</option>
-            <option value="500">500 Bits</option>
-            <option value="1000">1000 Bits</option>
-          </select>
-          <button class="casino-btn" id="rush-start">⚡ Lancer !</button>
-        </div>
-        <div class="rush-result" id="rush-result" style="display:none"></div>
-      </div>
-    `;
-  }
-
-  function playRush(): void {
-    if (gameInProgress) return;
-
-    const betSelect = contentEl.querySelector<HTMLSelectElement>('#rush-bet')!;
-    const bet = parseInt(betSelect.value);
-    const state = store.getState();
-
-    if (state.bits < bet) {
-      showError('Bits insuffisants !');
-      return;
-    }
-
+    const bet = getBet('wheel-bet');
+    if (store.getState().bits < bet) { showError('Bits insuffisants !'); return; }
     gameInProgress = true;
     store.spendBits(bet);
 
-    let score = 0;
-    let timeLeft = 10;
-    const timeEl = contentEl.querySelector<HTMLElement>('#rush-time')!;
-    const scoreEl = contentEl.querySelector<HTMLElement>('#rush-score')!;
-    const score2El = contentEl.querySelector<HTMLElement>('#rush-score2')!;
-    const field = contentEl.querySelector<HTMLElement>('#rush-field')!;
-    const pikachu = contentEl.querySelector<HTMLElement>('#rush-pikachu')!;
+    const canvas = contentEl.querySelector<HTMLCanvasElement>('#wheel-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
 
-    // Spawn lightning bolt targets to click
-    const spawnTarget = () => {
-      const target = document.createElement('div');
-      target.className = 'rush-target';
-      target.textContent = '⚡';
-      target.style.left = Math.random() * 80 + '%';
-      target.style.top = Math.random() * 60 + 10 + '%';
-      field.appendChild(target);
-      target.addEventListener('click', (e) => {
-        e.stopPropagation();
-        target.remove();
-        score++;
-        scoreEl.textContent = String(score);
-        score2El.textContent = String(score);
-        pikachu.classList.add('rush-pikachu--hit');
-        setTimeout(() => pikachu.classList.remove('rush-pikachu--hit'), 150);
-      }, { once: true });
-      setTimeout(() => target.remove(), 1200);
-    };
+    const targetIdx = Math.floor(Math.random() * WHEEL.length);
+    const targetRot = computeWheelTarget(wheelRot, targetIdx);
 
-    const spawnInterval = setInterval(() => { if (Math.random() < 0.8) spawnTarget(); }, 400);
+    const duration = 3500;
+    const startTime = performance.now();
+    const startRot = wheelRot;
 
-    const timer = setInterval(() => {
-      timeLeft--;
-      timeEl.textContent = String(timeLeft);
+    const spinBtn = contentEl.querySelector<HTMLButtonElement>('#wheel-spin')!;
+    spinBtn.disabled = true;
 
-      if (timeLeft <= 0) {
-        clearInterval(timer);
-        clearInterval(spawnInterval);
-        field.querySelectorAll('.rush-target').forEach(t => t.remove());
+    cancelAnimationFrame(wheelRaf);
 
-        const reward = Math.floor(score * bet * 0.2);
-        store.addBits(reward);
-        history.unshift({ game: 'rush', won: reward > 0, amount: reward, timestamp: Date.now() });
+    function tick(now: number): void {
+      const elapsed = Math.min(now - startTime, duration);
+      const t = elapsed / duration;
+      const eased = 1 - Math.pow(1 - t, 4);
+      const rot = startRot + eased * (targetRot - startRot);
+      drawWheel(ctx, 100, 100, 90, rot);
 
-        const resultEl = contentEl.querySelector<HTMLElement>('#rush-result')!;
-        resultEl.textContent = `⚡ ${score} clics — +${formatNumber(reward)} bits !`;
+      if (elapsed < duration) {
+        wheelRaf = requestAnimationFrame(tick);
+      } else {
+        // Store targetRot directly (no normalization avoids precision drift)
+        wheelRot = targetRot;
+        drawWheel(ctx, 100, 100, 90, wheelRot);
+
+        const sector = WHEEL[targetIdx];
+        const resultEl = contentEl.querySelector<HTMLElement>('#wheel-result')!;
         resultEl.style.display = 'block';
-        resultEl.className = 'rush-result--win';
+
+        if (sector.mult > 0) {
+          const gross = Math.floor(bet * sector.mult);
+          const net = gross - bet;
+          const netSign = net >= 0 ? '+' : '';
+          store.addBits(gross);
+          resultEl.textContent = `${sector.label} — ${netSign}${formatNumber(net)} bits nets`;
+          resultEl.className = net >= 0
+            ? 'wheel-result-msg wheel-result--win'
+            : 'wheel-result-msg wheel-result--lose';
+          addHistory('🎡', net >= 0, Math.abs(net));
+        } else {
+          resultEl.textContent = `PERTE — −${formatNumber(bet)} bits`;
+          resultEl.className = 'wheel-result-msg wheel-result--lose';
+          addHistory('🎡', false, bet);
+        }
 
         setTimeout(() => {
           gameInProgress = false;
-          renderGame(currentGame);
-          updateHistory();
-        }, 2000);
+          wheelRender();
+        }, 2500);
       }
-    }, 1000);
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // RENDERING
-  // ──────────────────────────────────────────────────────────────────────────
-
-  function renderGame(game: GameType): void {
-    currentGame = game;
-
-    // Update tab highlighting
-    tabs.forEach(tab => {
-      tab.classList.toggle('casino-tab--active', tab.dataset.game === game);
-    });
-
-    // Render game UI
-    let html = '';
-    switch (game) {
-      case 'blackjack':
-        html = blackjackUI();
-        break;
-      case 'gamble':
-        html = gambleUI();
-        break;
-      case 'wheel':
-        html = wheelUI();
-        break;
-      case 'rush':
-        html = rushUI();
-        break;
     }
 
-    contentEl.innerHTML = html;
+    wheelRaf = requestAnimationFrame(tick);
+  }
 
-    // Attach event listeners
-    setTimeout(() => {
-      switch (game) {
-        case 'blackjack':
-          contentEl.querySelector('#bj-play')?.addEventListener('click', playBlackjack);
-          break;
-        case 'gamble':
-          contentEl.querySelector('#gamble-spin')?.addEventListener('click', playGamble);
-          break;
-        case 'wheel':
-          contentEl.querySelector('#wheel-spin')?.addEventListener('click', playWheel);
-          break;
-        case 'rush':
-          contentEl.querySelector('#rush-start')?.addEventListener('click', playRush);
-          break;
-      }
-    }, 0);
+  // ───────────────────────────────────────────────────────────────────────────
+  // RENDU GÉNÉRAL
+  // ───────────────────────────────────────────────────────────────────────────
+  function renderGame(game: GameType): void {
+    if (gameInProgress && game !== currentGame) return;
+    cancelAnimationFrame(wheelRaf);
+    currentGame = game;
+    tabs.forEach(tab => tab.classList.toggle('casino-tab--active', tab.dataset.game === game));
+
+    if (game === 'blackjack') {
+      contentEl.innerHTML = `
+        <div class="casino-game-blackjack">
+          <div class="bj-section">
+            <div class="bj-label">Croupier <span id="bj-dealer-total" class="bj-total"></span></div>
+            <div class="bj-cards" id="bj-dealer-cards"></div>
+          </div>
+          <div class="bj-bet-row">
+            Mise en jeu : <span class="mono" id="bj-bet-display">—</span>
+          </div>
+          <div class="bj-section">
+            <div class="bj-label">Vous <span id="bj-player-total" class="bj-total"></span></div>
+            <div id="bj-player-cards"></div>
+          </div>
+          <div id="bj-controls" class="bj-controls"></div>
+          <div id="bj-msg" class="bj-msg"></div>
+        </div>
+      `;
+      bjPhase = 'bet';
+      bjHands = [[]];
+      bjHandBets = [bjBet];
+      bjHandIdx = 0;
+      bjDealer = [];
+      bjDeck = [];
+      bjRender();
+    } else if (game === 'suits') {
+      selectedSuit = null;
+      suitsRender();
+    } else if (game === 'wheel') {
+      wheelRender();
+    }
   }
 
   function updateBalance(): void {
@@ -494,25 +700,24 @@ export function mountCasino(container: HTMLElement): () => void {
   function updateHistory(): void {
     historyEl.innerHTML = history.slice(0, 5).map(h => {
       const icon = h.won ? '✅' : '❌';
-      return `<div class="casino-history-item ${h.won ? 'win' : 'lose'}">${icon} ${h.game}: ${h.won ? '+' : '-'}${formatNumber(h.amount)}</div>`;
+      return `<div class="casino-history-item ${h.won ? 'win' : 'lose'}">${icon} ${h.game} ${h.won ? '+' : '−'}${formatNumber(h.amount)}</div>`;
     }).join('');
   }
 
-  // Event listeners
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      if (!gameInProgress) {
+      if (!gameInProgress || tab.dataset.game === currentGame) {
         renderGame(tab.dataset.game as GameType);
       }
     });
   });
 
   const unsubStore = store.subscribe(updateBalance);
-
-  // Initial render
   renderGame('blackjack');
   updateBalance();
-  updateHistory();
 
-  return () => unsubStore();
+  return () => {
+    cancelAnimationFrame(wheelRaf);
+    unsubStore();
+  };
 }

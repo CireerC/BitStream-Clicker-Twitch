@@ -88,8 +88,8 @@
   to   { opacity: 0; transform: translateY(16px) scale(0.96); }
 }
 
-.mg-card--out {
-  animation: card-slide-out 0.25s ease forwards;
+.mg-card.mg-card--out {
+  animation: card-slide-out 0.25s ease forwards !important;
 }
 
 /* kept for offline modal */

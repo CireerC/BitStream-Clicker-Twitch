@@ -1,138 +1,141 @@
 import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
+import { isSupabaseConfigured, fetchLeaderboard, upsertScore, type LBEntry } from '../../integrations/supabase/LeaderboardDB.js';
 
-interface LeaderEntry {
-  name: string;
-  score: number;
-  isPlayer: boolean;
-}
+export const NAME_KEY  = 'bs_player_name';
+const BEST_KEY  = 'bs_player_best';
+const POLL_MS   = 2 * 60 * 1000;   // refresh leaderboard every 2 min
+const SUBMIT_MS = 5 * 60 * 1000;   // push score every 5 min
 
-const SAVE_KEY = 'bs_leaderboard_v1';
-const NAME_KEY = 'bs_player_name';
-
-// Deterministic bot names + scores from a hash seed
+// ── Fallback bot data (used when Supabase is not configured) ──────────────
 const BOT_NAMES = [
   'xX_BitL0rd_Xx', 'Neuron_42', 'QuantumLeak', 'CryptoVoid',
   'NullByte', 'SilentMiner', 'ByteHunter', 'DataPhantom',
-  'GridRunner', 'CodeShadow', 'PacketWolf', 'NanoScript',
+  'GridRunner', 'CodeShadow',
 ];
 
 function hashNum(seed: string, idx: number): number {
-  let h = idx * 1234567891;
-  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 2246822519) >>> 0;
+  let h = idx * 1_234_567_891;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 2_246_822_519) >>> 0;
   return h;
 }
 
-function getBotScore(name: string, playerBest: number): number {
-  const h = hashNum(name, name.length);
-  const variance = 0.3 + (h % 100) / 100 * 1.4; // 0.3× to 1.7× of player score
-  const base = Math.max(playerBest * variance, 100);
-  return Math.floor(base);
+function botEntries(playerBest: number): LBEntry[] {
+  return BOT_NAMES.map(name => {
+    const h = hashNum(name, name.length);
+    const v = 0.3 + (h % 100) / 100 * 1.4;
+    return { name, score: Math.floor(Math.max(playerBest * v, 100)) };
+  });
 }
 
-function getPlayerName(): string {
-  return localStorage.getItem(NAME_KEY) || 'Vous';
+// ── Helpers ───────────────────────────────────────────────────────────────
+export function getPlayerName(): string {
+  return localStorage.getItem(NAME_KEY) ?? '';
 }
 
-function savePlayerName(name: string): void {
+export function savePlayerName(name: string): void {
   localStorage.setItem(NAME_KEY, name);
 }
 
 function getPlayerBest(): number {
-  const raw = localStorage.getItem(SAVE_KEY);
-  try { if (raw) return JSON.parse(raw) as number; } catch {}
-  return 0;
+  try { return JSON.parse(localStorage.getItem(BEST_KEY) ?? '0') as number; } catch { return 0; }
 }
 
 function savePlayerBest(score: number): void {
-  const prev = getPlayerBest();
-  if (score > prev) localStorage.setItem(SAVE_KEY, JSON.stringify(score));
+  if (score > getPlayerBest()) localStorage.setItem(BEST_KEY, JSON.stringify(score));
 }
 
+// ── Module ────────────────────────────────────────────────────────────────
 export function mountLeaderboard(container: HTMLElement): () => void {
-  let playerName = getPlayerName();
+  const online = isSupabaseConfigured();
+  let entries: LBEntry[] = [];
   let playerBest = getPlayerBest();
-  let editing = false;
+  let lastSubmit = 0;
+  let pollTimer  = 0;
+  let submitTimer = 0;
 
-  function buildEntries(): LeaderEntry[] {
+  container.innerHTML = `
+    <div class="lb-panel">
+      <h2 class="panel-title">🏆 Classement</h2>
+      <div class="lb-status" id="lb-status">${online ? '🌐 En ligne' : '🤖 Local (bots)'}</div>
+      <div class="lb-rank-row">Votre rang : <span class="mono" id="lb-your-rank">#?</span></div>
+      <div class="lb-list" id="lb-list">
+        <div class="lb-loading">Chargement…</div>
+      </div>
+    </div>
+  `;
+
+  const listEl     = container.querySelector<HTMLElement>('#lb-list')!;
+  const rankEl     = container.querySelector<HTMLElement>('#lb-your-rank')!;
+
+  function renderEntries(): void {
+    const playerName = getPlayerName();
     const current = store.getState().totalBitsEarned;
     playerBest = Math.max(playerBest, current);
     savePlayerBest(playerBest);
 
-    const bots: LeaderEntry[] = BOT_NAMES.slice(0, 9).map(name => ({
-      name,
-      score: getBotScore(name, Math.max(playerBest, 100)),
-      isPlayer: false,
-    }));
-
-    const player: LeaderEntry = { name: playerName, score: playerBest, isPlayer: true };
-    return [...bots, player].sort((a, b) => b.score - a.score);
-  }
-
-  function render(): void {
-    const entries = buildEntries();
-    const playerRank = entries.findIndex(e => e.isPlayer) + 1;
-
-    const listEl = container.querySelector<HTMLElement>('.lb-list');
-    if (!listEl) return;
-
-    listEl.innerHTML = entries.map((e, i) => `
-      <div class="lb-row ${e.isPlayer ? 'lb-row--you' : ''}">
-        <span class="lb-rank mono">#${i + 1}</span>
-        <span class="lb-name">${e.name}${e.isPlayer ? ' <span class="lb-you">(Vous)</span>' : ''}</span>
-        <span class="lb-score mono">${formatNumber(e.score)}</span>
-      </div>
-    `).join('');
-
-    const rankEl = container.querySelector<HTMLElement>('#lb-your-rank');
-    if (rankEl) rankEl.textContent = `#${playerRank}`;
-  }
-
-  container.innerHTML = `
-    <div class="lb-panel">
-      <h2 class="panel-title">Classement</h2>
-      <div class="lb-header">
-        <div class="lb-name-row">
-          <span class="lb-name-label">Votre nom :</span>
-          <span id="lb-name-display" class="lb-name-val">${playerName}</span>
-          <button class="lb-edit-btn" id="lb-edit">✏</button>
-        </div>
-        <div class="lb-rank-row">Votre rang : <span class="mono" id="lb-your-rank">#?</span></div>
-      </div>
-      <div class="lb-name-edit" id="lb-name-edit" style="display:none">
-        <input class="lb-input" id="lb-name-input" type="text" maxlength="18" placeholder="Votre pseudo" value="${playerName}">
-        <button class="lb-save-btn" id="lb-name-save">OK</button>
-      </div>
-      <div class="lb-list"></div>
-    </div>
-  `;
-
-  const editBtn = container.querySelector<HTMLButtonElement>('#lb-edit')!;
-  const nameDisplay = container.querySelector<HTMLElement>('#lb-name-display')!;
-  const nameEditRow = container.querySelector<HTMLElement>('#lb-name-edit')!;
-  const nameInput = container.querySelector<HTMLInputElement>('#lb-name-input')!;
-  const saveBtn = container.querySelector<HTMLButtonElement>('#lb-name-save')!;
-
-  editBtn.addEventListener('click', () => {
-    editing = !editing;
-    nameEditRow.style.display = editing ? 'flex' : 'none';
-    if (editing) nameInput.focus();
-  });
-
-  saveBtn.addEventListener('click', () => {
-    const val = nameInput.value.trim();
-    if (val) {
-      playerName = val;
-      savePlayerName(val);
-      nameDisplay.textContent = val;
+    let all: LBEntry[];
+    if (online) {
+      // Merge player into real entries (upsert locally for immediate feedback)
+      const withoutMe = entries.filter(e => e.name !== playerName);
+      const me: LBEntry = { name: playerName, score: playerBest };
+      all = [...withoutMe, me].sort((a, b) => b.score - a.score).slice(0, 20);
+    } else {
+      const me: LBEntry = { name: playerName || 'Vous', score: playerBest };
+      all = [...botEntries(playerBest), me].sort((a, b) => b.score - a.score);
     }
-    editing = false;
-    nameEditRow.style.display = 'none';
-    render();
-  });
 
-  render();
-  const unsub = store.subscribe(render);
+    const playerRank = all.findIndex(e => e.name === (playerName || 'Vous')) + 1;
+    rankEl.textContent = `#${playerRank}`;
 
-  return () => unsub();
+    listEl.innerHTML = all.map((e, i) => {
+      const isMe = e.name === (playerName || 'Vous');
+      return `
+        <div class="lb-row ${isMe ? 'lb-row--you' : ''}">
+          <span class="lb-rank mono">#${i + 1}</span>
+          <span class="lb-name">${e.name}${isMe ? ' <span class="lb-you">(Vous)</span>' : ''}</span>
+          <span class="lb-score mono">${formatNumber(e.score)}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadFromServer(): Promise<void> {
+    if (!online) { renderEntries(); return; }
+    try {
+      entries = await fetchLeaderboard();
+    } catch {
+      // silent — keep previous entries
+    }
+    renderEntries();
+  }
+
+  async function maybePushScore(): Promise<void> {
+    if (!online) return;
+    const now = Date.now();
+    if (now - lastSubmit < SUBMIT_MS) return;
+    const playerName = getPlayerName();
+    if (!playerName) return;
+    const current = store.getState().totalBitsEarned;
+    playerBest = Math.max(playerBest, current);
+    if (playerBest <= 0) return;
+    lastSubmit = now;
+    try { await upsertScore(playerName, playerBest); } catch { /* silent */ }
+  }
+
+  // Initial load
+  void loadFromServer();
+
+  // Periodic refresh + score submission
+  pollTimer   = window.setInterval(() => { void loadFromServer(); }, POLL_MS);
+  submitTimer = window.setInterval(() => { void maybePushScore(); }, SUBMIT_MS);
+
+  // Also re-render when store changes (live rank update)
+  const unsub = store.subscribe(renderEntries);
+
+  return () => {
+    clearInterval(pollTimer);
+    clearInterval(submitTimer);
+    unsub();
+  };
 }

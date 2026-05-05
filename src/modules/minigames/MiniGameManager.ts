@@ -7,10 +7,10 @@ interface MiniGame {
   mount(container: HTMLElement, onWin: () => void, onLose: () => void): () => void;
 }
 
-// ── Game 1: Click the target ──────────────────────────────────────────────────
+// ── Jeu 1 : Clique la cible ───────────────────────────────────────────────────
 const clickTargetGame: MiniGame = {
-  title: '🎯 Click the Target',
-  instructions: 'Click the glowing target 5 times.',
+  title: '🎯 Cible !',
+  instructions: 'Clique 5 fois sur la cible !',
   mount(container, onWin) {
     const targets = 5;
     let clicked = 0;
@@ -35,10 +35,10 @@ const clickTargetGame: MiniGame = {
   },
 };
 
-// ── Game 2: Key sequence ──────────────────────────────────────────────────────
+// ── Jeu 2 : Séquence de touches ───────────────────────────────────────────────
 const keySequenceGame: MiniGame = {
-  title: '⌨️ Key Sequence',
-  instructions: 'Type the sequence shown.',
+  title: '⌨️ Séquence',
+  instructions: 'Tape la séquence affichée.',
   mount(container, onWin, onLose) {
     const keys = ['A', 'S', 'D', 'F', 'J', 'K', 'L'];
     const seq = Array.from({ length: 5 }, () => keys[Math.floor(Math.random() * keys.length)]);
@@ -63,10 +63,10 @@ const keySequenceGame: MiniGame = {
   },
 };
 
-// ── Game 3: Quick math ────────────────────────────────────────────────────────
+// ── Jeu 3 : Calcul rapide ─────────────────────────────────────────────────────
 const quickMathGame: MiniGame = {
-  title: '🧮 Quick Math',
-  instructions: 'Tap the correct answer.',
+  title: '🧮 Calcul rapide',
+  instructions: 'Appuie sur la bonne réponse.',
   mount(container, onWin, onLose) {
     const a = Math.floor(Math.random() * 20) + 1;
     const b = Math.floor(Math.random() * 20) + 1;
@@ -112,7 +112,7 @@ export function startMiniGameManager(): () => void {
   }
 
   function triggerGame(): void {
-    if (card) return; // already showing one
+    if (card) return;
     const game = GAMES[Math.floor(Math.random() * GAMES.length)];
     showCard(game);
   }
@@ -121,14 +121,14 @@ export function startMiniGameManager(): () => void {
     const el = document.createElement('div');
     el.className = 'mg-card';
     const durationSec = BALANCE.minigames.durationMs / 1000;
-    let isDismissing = false;  // Prevent double-dismiss
+    let isDismissing = false;
 
     el.innerHTML = `
       <div class="mg-card__header">
         <span class="mg-card__title">${game.title}</span>
         <div class="mg-card__controls">
           <span class="mg-card__timer mono" id="mg-timer">${durationSec}</span>
-          <button class="mg-card__close" id="mg-close" title="Skip (give up)">✕</button>
+          <button class="mg-card__close" id="mg-close" title="Abandonner">✕</button>
         </div>
       </div>
       <p class="mg-card__instructions">${game.instructions}</p>
@@ -138,13 +138,14 @@ export function startMiniGameManager(): () => void {
     document.body.appendChild(el);
     card = el;
 
-    const arena   = el.querySelector<HTMLElement>('#mg-arena')!;
-    const timerEl = el.querySelector<HTMLElement>('#mg-timer')!;
-    const resultEl= el.querySelector<HTMLElement>('#mg-result')!;
-    const closeBtn= el.querySelector<HTMLButtonElement>('#mg-close')!;
+    const arena    = el.querySelector<HTMLElement>('#mg-arena')!;
+    const timerEl  = el.querySelector<HTMLElement>('#mg-timer')!;
+    const resultEl = el.querySelector<HTMLElement>('#mg-result')!;
+    const closeBtn = el.querySelector<HTMLButtonElement>('#mg-close')!;
 
     let remaining = durationSec;
     let resultTimer: number | null = null;
+
     const countdown = setInterval(() => {
       remaining--;
       timerEl.textContent = String(remaining);
@@ -179,25 +180,33 @@ export function startMiniGameManager(): () => void {
 
       resultEl.innerHTML = won
         ? `<div class="mg-result mg-result--win">
-             <span>🎉 +${formatNumber(reward)} bits!</span>
+             <span>🎉 +${formatNumber(reward)} bits !</span>
              <small>×${BALANCE.minigames.burstBpsMultiplier} BPS · ${formatDuration(BALANCE.minigames.burstDurationSec)}</small>
            </div>`
-        : `<div class="mg-result mg-result--lose"><span>💀 Too slow!</span></div>`;
+        : `<div class="mg-result mg-result--lose"><span>💀 FAUX !</span></div>`;
 
-      resultTimer = window.setTimeout(() => { dismiss(true); }, 2200);
+      resultTimer = window.setTimeout(() => dismiss(true), 2200);
     }
 
     function dismiss(scheduleAfter: boolean): void {
-      if (isDismissing) return;  // Already dismissing, prevent double-dismiss
+      if (isDismissing) return;
       isDismissing = true;
 
       el.classList.add('mg-card--out');
-      el.addEventListener('animationend', () => {
+
+      let removed = false;
+      const doRemove = (): void => {
+        if (removed) return;
+        removed = true;
         el.remove();
         card = null;
         cleanupGame = null;
         if (scheduleAfter) scheduleNext();
-      }, { once: true });
+      };
+
+      el.addEventListener('animationend', doRemove, { once: true });
+      // Fallback: force-remove if animationend never fires (e.g. after timer expires)
+      window.setTimeout(doRemove, 400);
     }
 
     cleanupGame = game.mount(arena, onWin, onLose);

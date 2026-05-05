@@ -369,3 +369,20 @@ Depuis `PourMoi.txt` :
 - Achievement system
 - Nouvelles technologies de recherche
 - Animations plus riches pour l'endgame (Phase 5)
+
+
+
+Bugs corrigés
+
+Pop-up ne se ferme pas — cause racine trouvée : .mg-card (phase.css, chargé en dernier) écrasait .mg-card--out (animations.css) → l'animation card-slide-out ne jouait jamais → animationend ne firait jamais. Fix : sélecteur .mg-card.mg-card--out (double-classe, spécificité plus haute) + fallback setTimeout(400ms).
+Combo x12 blanc sur bleu — text-shadow noir multi-directionnel sur texte blanc : lisible sur n'importe quel fond.
+Casino refait
+
+Blackjack : vrai deck 52 cartes shufflé, cartes visuelles (rang + couleur), Tirer / Rester / Doubler, logique croupier (≤16 tire, ≥17 reste), blackjack naturel paie ×1.5, égalité remboursée.
+♥ Couleurs : choisis ♠ ♣ ♥ ♦, mise libre → une carte tirée, bonne couleur = ×3 (1 chance sur 4).
+🎡 Roue : canvas 2D avec 8 secteurs colorés, animation requestAnimationFrame avec ease-out quartic, pointeur fixe en haut, résultat réel.
+⚡ Rush : inchangé (fonctionnait bien).
+Mise libre : champ <input type="number"> + boutons 10% / 25% / 50% / MAX pour tous les jeux.
+Traductions
+
+Mini-jeux : titres et instructions en français, "💀 FAUX !" au lieu de "Too slow!".

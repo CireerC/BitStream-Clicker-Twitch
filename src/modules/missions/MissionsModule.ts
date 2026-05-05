@@ -158,12 +158,33 @@ export function mountMissions(container: HTMLElement): () => void {
     });
   }
 
+  function getResetLabel(): string {
+    const now = new Date();
+    const reset = new Date(now);
+    reset.setHours(24, 0, 0, 0); // prochaine minuit
+    const diff = reset.getTime() - now.getTime();
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    return `Reset dans ${hh}h${mm}`;
+  }
+
   container.innerHTML = `
     <div class="missions-panel">
-      <h2 class="panel-title">Missions du jour</h2>
+      <div class="missions-header">
+        <h2 class="panel-title" style="margin:0">Missions du jour</h2>
+        <span class="missions-reset" id="missions-reset">${getResetLabel()}</span>
+      </div>
       <div class="missions-list"></div>
     </div>
   `;
+
+  // Update reset countdown every minute
+  const resetInterval = window.setInterval(() => {
+    const el = container.querySelector<HTMLElement>('#missions-reset');
+    if (el) el.textContent = getResetLabel();
+  }, 60_000);
 
   renderProgress();
 
@@ -180,5 +201,6 @@ export function mountMissions(container: HTMLElement): () => void {
   return () => {
     unsub();
     clearTimeout(renderTimer);
+    clearInterval(resetInterval);
   };
 }

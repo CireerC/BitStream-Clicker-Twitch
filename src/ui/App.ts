@@ -4,6 +4,7 @@ import { mountClicker } from '../modules/clicker/Clicker.js';
 import { mountProduction } from '../modules/production/Production.js';
 import { mountProjects } from '../modules/projects/ProjectSystem.js';
 import { mountCasino } from '../modules/casino/CasinoModule.js';
+import { mountAimTrainer } from '../modules/aimtrainer/AimTrainer.js';
 import { mountMissions } from '../modules/missions/MissionsModule.js';
 import { mountLeaderboard } from '../modules/leaderboard/Leaderboard.js';
 import { startMiniGameManager } from '../modules/minigames/MiniGameManager.js';
@@ -12,6 +13,7 @@ import { startTwitchPoller, mountTwitchBadge } from '../integrations/twitch/Twit
 import { store } from '../core/GameStore.js';
 import { initI18n, t } from '../core/i18n.js';
 import { BALANCE, formatNumber } from '../core/balance.js';
+import { maybeShowUsernameModal } from './UsernameModal.js';
 
 interface AppConfig {
   twitchClientId?: string;
@@ -19,8 +21,8 @@ interface AppConfig {
 }
 
 export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
-  // Initialize translation system
   initI18n(store);
+  maybeShowUsernameModal();
   root.innerHTML = `
     <div id="hdr"></div>
     <main class="layout">
@@ -59,6 +61,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       <section class="layout__center">
         <section id="prod-slot"></section>
         <section id="casino-slot" style="display:none"></section>
+        <section id="aimtrainer-slot" style="display:none"></section>
       </section>
 
       <!-- Colonne droite : Projets + Missions + Leaderboard -->
@@ -87,18 +90,25 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   if (twitchSlot) mountTwitchBadge(twitchSlot);
 
   // ── Dynamic module reveal (when projects unlock them) ──────────────────────
-  const casinoSlot = root.querySelector<HTMLElement>('#casino-slot')!;
+  const casinoSlot      = root.querySelector<HTMLElement>('#casino-slot')!;
+  const aimtrainerSlot  = root.querySelector<HTMLElement>('#aimtrainer-slot')!;
 
-  let casinoMounted = false;
+  let casinoMounted     = false;
+  let aimtrainerMounted = false;
 
   function maybeUnlockModules(): void {
     const state = store.getState();
 
-    // Casino: unlock when "casino_charter" project is purchased
     if (!casinoMounted && state.projects.find(p => p.id === 'casino_charter')?.purchased) {
       casinoSlot.style.display = '';
       mountCasino(casinoSlot);
       casinoMounted = true;
+    }
+
+    if (!aimtrainerMounted && state.projects.find(p => p.id === 'aim_protocol')?.purchased) {
+      aimtrainerSlot.style.display = '';
+      mountAimTrainer(aimtrainerSlot);
+      aimtrainerMounted = true;
     }
   }
 

@@ -1,16 +1,74 @@
-Un fois qu'il y a un pop up du genre math sequence ou key sequence, quand j'appuye sur la croix apres l'expiration du temps elle ne veut pas se fermer
+window.store.addBits(1000000)
 
-J'aimerai bien faire un refonte du jeu et plus me focus sur faire un jeu qui repose sur les modules et donc elever le systeme de generateru et utiliser les clicker comme une source primitive et lente de generation de bit. Il faudrai qu'on puisse mise autant qu'on veut au machine "casino". et pour les autres machines  (pose moi des questions si tu veux pour vriament avoir un systems clair et fun a jouer, proporse des idees )
+Mettre en place un peu plus de projet et des nouveau moduels
 
-Le blackjack est cassé, y'a aucune animation de carte, le croupier affiche toujours un ?, on a toiujours 15, on peut pas split coubler stand etc 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TUTO — MISE EN PLACE DU CLASSEMENT EN LIGNE (Supabase)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-pour le jeu de carte je ne pensais pas forcement a une roue avec des symbole comme ça mais plus tu mises sur coeur par exmple et siça tombe dessus tu gaggnes 
+ÉTAPE 1 — Créer le projet Supabase
+───────────────────────────────────
+1. Va sur https://supabase.com et connecte-toi (ou crée un compte gratuit)
+2. Clique "New project"
+3. Choisis un nom (ex: bitstream-leaderboard), un mot de passe DB, et une région
+4. Attends ~1 minute que le projet démarre
 
-l'affichae de la roue de la fortune est complement cassé 
+ÉTAPE 2 — Créer la table
+─────────────────────────
+1. Dans ton projet Supabase, clique sur "SQL Editor" dans le menu gauche
+2. Colle et exécute ce SQL en entier :
 
-l'affichage du x12 fait blanc sur bleu donc dure de lire
+    create table leaderboard (
+      name text primary key,
+      score bigint not null default 0,
+      updated_at timestamptz default now()
+    );
 
-les modules externe du genre math si on repond faut on a un 'too slow" j'aimerai plus un truc du genre FAUX
+    alter table leaderboard enable row level security;
 
-Je veux que l'app soit entierement en fraicais pas d'anglais 
+    create policy "read"
+      on leaderboard for select
+      using (true);
 
+    create policy "insert"
+      on leaderboard for insert
+      with check (true);
+
+    create policy "update"
+      on leaderboard for update
+      using (true);
+
+3. Clique "Run" — tu dois voir "Success. No rows returned."
+
+ÉTAPE 3 — Récupérer les clés API
+──────────────────────────────────
+1. Dans le menu gauche, clique "Project Settings" (icône engrenage)
+2. Clique "API"
+3. Copie :
+   - "Project URL"      → c'est ton VITE_SUPABASE_URL
+   - "anon public" key  → c'est ton VITE_SUPABASE_ANON_KEY
+
+ÉTAPE 4 — Configurer le projet local
+──────────────────────────────────────
+Ouvre le fichier .env.local à la racine du projet et remplis :
+
+    VITE_SUPABASE_URL=https://xxxxxxxxxxxxxx.supabase.co
+    VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+ÉTAPE 5 — Relancer le serveur
+──────────────────────────────
+    npm run dev
+
+Le classement affichera "🌐 En ligne" au lieu de "🤖 Local (bots)".
+Ton score est envoyé automatiquement toutes les 5 minutes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VÉRIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pour tester que ça marche :
+1. Lance le jeu, entre ton pseudo dans la popup de démarrage
+2. Joue quelques minutes
+3. Dans Supabase > "Table Editor" > "leaderboard" : ton nom doit apparaître
+
+Pour forcer l'envoi immédiat depuis la console du navigateur :
+    store.getState().totalBitsEarned  // vérifie ton score actuel
