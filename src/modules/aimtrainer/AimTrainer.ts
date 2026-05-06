@@ -1,10 +1,13 @@
 import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
 
-const GAME_DURATION  = 15;
+const GAME_DURATION   = 15;
 const TARGET_LIFETIME = 1400;
+const BOMB_LIFETIME   = 1200;   // bombs disappear faster
 const SPAWN_INTERVAL  = 500;
 const SPAWN_CHANCE    = 0.85;
+const BOMB_CHANCE     = 0.18;   // ~18% of spawns are bombs
+const BOMB_BET_LOSS   = 0.12;   // clicking a bomb costs 12% of bet
 
 // Points per hit based on target size:
 //   small (≤ 28px) → 3 pts, medium (≤ 42px) → 2 pts, large → 1 pt
@@ -83,10 +86,13 @@ export function mountAimTrainer(container: HTMLElement): () => void {
 
   function spawnTarget(): void {
     if (!gameActive) return;
+
+    // Randomly spawn a bomb instead of a normal target
+    if (Math.random() < BOMB_CHANCE) { spawnBomb(); return; }
+
     const target = document.createElement('div');
     target.className = 'aim-target';
 
-    // Size range: 18–56px; smaller = rarer but more rewarding
     const size = 18 + Math.floor(Math.random() * 39);
     const pts = pointsForSize(size);
     target.style.width  = size + 'px';
@@ -98,7 +104,6 @@ export function mountAimTrainer(container: HTMLElement): () => void {
     target.style.left = Math.max(4, Math.random() * fieldW) + 'px';
     target.style.top  = Math.max(4, Math.random() * fieldH) + 'px';
 
-    // Smaller targets get a distinct accent color
     if (pts === 3) target.classList.add('aim-target--small');
     else if (pts === 2) target.classList.add('aim-target--medium');
 
@@ -120,11 +125,9 @@ export function mountAimTrainer(container: HTMLElement): () => void {
       hitsEl.textContent  = String(hits);
       scoreEl.textContent = String(points);
 
-      // Flash the target color on hit before removing
       target.classList.add('aim-target--hit');
       setTimeout(removeTarget, 130);
 
-      // Show floating points label
       const floater = document.createElement('div');
       floater.className = 'aim-floater';
       floater.textContent = `+${p}`;
@@ -135,6 +138,53 @@ export function mountAimTrainer(container: HTMLElement): () => void {
     }, { once: true });
 
     setTimeout(removeTarget, TARGET_LIFETIME);
+  }
+
+  function spawnBomb(): void {
+    if (!gameActive) return;
+    const bomb = document.createElement('div');
+    bomb.className = 'aim-target aim-target--bomb';
+    const size = 32 + Math.floor(Math.random() * 16); // bombs are medium-large
+    bomb.style.width  = size + 'px';
+    bomb.style.height = size + 'px';
+    bomb.textContent  = '💣';
+
+    const fieldW = field.clientWidth  - size - 8;
+    const fieldH = field.clientHeight - size - 8;
+    bomb.style.left = Math.max(4, Math.random() * fieldW) + 'px';
+    bomb.style.top  = Math.max(4, Math.random() * fieldH) + 'px';
+
+    field.appendChild(bomb);
+    activeTargets.add(bomb);
+
+    const removeBomb = (): void => {
+      if (!bomb.isConnected) return;
+      bomb.remove();
+      activeTargets.delete(bomb);
+    };
+
+    bomb.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!gameActive) return;
+      // Clicking a bomb costs a fraction of the bet
+      const currentBet = Math.max(1, parseInt(betInput.value) || 1);
+      const loss = Math.floor(currentBet * BOMB_BET_LOSS);
+      if (loss > 0) {
+        store.setState(s => { s.bits = Math.max(0, s.bits - loss); });
+      }
+      bomb.classList.add('aim-target--hit');
+      setTimeout(removeBomb, 130);
+
+      const floater = document.createElement('div');
+      floater.className = 'aim-floater aim-floater--bomb';
+      floater.textContent = `💥 −${loss}`;
+      floater.style.left = bomb.style.left;
+      floater.style.top  = bomb.style.top;
+      field.appendChild(floater);
+      setTimeout(() => floater.remove(), 900);
+    }, { once: true });
+
+    setTimeout(removeBomb, BOMB_LIFETIME);
   }
 
   function endGame(bet: number): void {

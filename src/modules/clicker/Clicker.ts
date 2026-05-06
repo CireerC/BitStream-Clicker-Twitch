@@ -19,67 +19,18 @@ export function mountClicker(container: HTMLElement): () => void {
           <span class="stat-label">Par clic</span>
           <span class="stat-value mono" id="bpc-display">0</span>
         </div>
-        <div class="stat-row" id="phase-penalty-row" style="display:none">
-          <span class="stat-label clicker-penalty-label" id="phase-penalty-label">Phase</span>
-        </div>
       </div>
     </div>
   `;
 
-  const btn           = container.querySelector<HTMLButtonElement>('#main-btn')!;
-  const comboFill     = container.querySelector<HTMLDivElement>('#combo-fill')!;
-  const comboText     = container.querySelector<HTMLSpanElement>('#combo-text')!;
-  const bpcDisplay    = container.querySelector<HTMLSpanElement>('#bpc-display')!;
-  const penaltyRow    = container.querySelector<HTMLElement>('#phase-penalty-row')!;
-  const penaltyLabel  = container.querySelector<HTMLElement>('#phase-penalty-label')!;
+  const btn        = container.querySelector<HTMLButtonElement>('#main-btn')!;
+  const comboFill  = container.querySelector<HTMLDivElement>('#combo-fill')!;
+  const comboText  = container.querySelector<HTMLSpanElement>('#combo-text')!;
+  const bpcDisplay = container.querySelector<HTMLSpanElement>('#bpc-display')!;
 
-  // ── Combo state ──────────────────────────────────────────────────────────
   let comboDecayTimer = 0;
 
-  // ── Bomb state ──────────────────────────────────────────────────────────
-  let bombVisible = false;
-  let bombTimeout = 0;
-  let clicksSinceBomb = 0;
-  let bombThreshold = nextBombThreshold();
-
-  function nextBombThreshold(): number {
-    const { bombMinClicks, bombMaxClicks } = BALANCE.clicker;
-    const defused = store.getState().projects.find(p => p.id === 'bomb_defuser')?.purchased;
-    const base = bombMinClicks + Math.floor(Math.random() * (bombMaxClicks - bombMinClicks));
-    return defused ? base * 2 : base;
-  }
-
-  function showBomb(): void {
-    bombVisible = true;
-    btn.classList.add('click-btn--bomb');
-    btn.querySelector<HTMLElement>('.click-btn__icon')!.textContent = '💣';
-    btn.querySelector<HTMLElement>('.click-btn__label')!.textContent = 'DANGER!';
-    bombTimeout = window.setTimeout(() => hideBomb(false), BALANCE.clicker.bombDurationMs);
-  }
-
-  function hideBomb(triggered: boolean): void {
-    clearTimeout(bombTimeout);
-    bombVisible = false;
-    btn.classList.remove('click-btn--bomb');
-    btn.querySelector<HTMLElement>('.click-btn__icon')!.textContent = '⚡';
-    btn.querySelector<HTMLElement>('.click-btn__label')!.textContent = 'CLIC';
-
-    if (triggered) {
-      const state = store.getState();
-      const loss = Math.floor(state.bits * BALANCE.clicker.bombBitLossPct);
-      store.setState(s => {
-        s.bits = Math.max(0, s.bits - loss);
-        s.clicker.comboCount = 0;
-        s.clicker.comboMultiplier = 1;
-      });
-      spawnFloater(btn, -loss, true);
-      btn.classList.add('click-btn--boom');
-      setTimeout(() => btn.classList.remove('click-btn--boom'), 400);
-      renderCombo();
-    }
-  }
-
-  // ── Anti-autoclicker: track recent clicks ────────────────────────────────
+  // Anti-autoclicker: track recent clicks to penalise CPS above limit
   const recentClicks: number[] = [];
   const CPS_WINDOW = 3000;
 
@@ -91,13 +42,7 @@ export function mountClicker(container: HTMLElement): () => void {
     return cps <= limit ? 1 : limit / cps;
   }
 
-  // ── Main click handler ───────────────────────────────────────────────────
   function handleClick(e: MouseEvent | TouchEvent): void {
-    if (bombVisible) {
-      hideBomb(true);
-      return;
-    }
-
     recentClicks.push(Date.now());
     const penalty = getAutoclickerPenalty();
     const bpc = store.getEffectiveBPC() * penalty;
@@ -105,21 +50,13 @@ export function mountClicker(container: HTMLElement): () => void {
     store.addBits(bpc);
     store.incrementClicks();
 
-    spawnFloater(btn, bpc, false);
+    spawnFloater(btn, bpc);
     btn.classList.remove('click-btn--pop');
     void btn.offsetWidth;
     btn.classList.add('click-btn--pop');
 
     updateCombo();
     spawnRipple(btn, e);
-
-    // Bomb check
-    clicksSinceBomb++;
-    if (clicksSinceBomb >= bombThreshold) {
-      clicksSinceBomb = 0;
-      bombThreshold = nextBombThreshold();
-      showBomb();
-    }
   }
 
   function updateCombo(): void {
@@ -148,20 +85,15 @@ export function mountClicker(container: HTMLElement): () => void {
 
   function renderCombo(): void {
     const { comboCount, comboMultiplier } = store.getState().clicker;
-    const maxCombo = store.getMaxCombo();
     const pct = (comboCount / BALANCE.clicker.clicksToMaxCombo) * 100;
     comboFill.style.width = pct.toFixed(1) + '%';
     comboText.textContent = `×${comboMultiplier.toFixed(1)}`;
-    // Color combo bar based on phase (warns player)
-    const phase = store.getCurrentPhase();
-    comboFill.style.opacity = phase >= 3 ? '0.5' : '1';
-    void maxCombo; // used indirectly via store
   }
 
-  function spawnFloater(anchor: HTMLElement, amount: number, isBomb: boolean): void {
+  function spawnFloater(anchor: HTMLElement, amount: number): void {
     const el = document.createElement('div');
-    el.className = isBomb ? 'click-floater click-floater--bomb' : 'click-floater';
-    el.textContent = (isBomb ? '' : '+') + formatNumber(amount);
+    el.className = 'click-floater';
+    el.textContent = '+' + formatNumber(amount);
     const rect = anchor.getBoundingClientRect();
     el.style.left = rect.left + rect.width / 2 + (Math.random() - 0.5) * 60 + 'px';
     el.style.top  = rect.top - 10 + 'px';
@@ -183,26 +115,11 @@ export function mountClicker(container: HTMLElement): () => void {
 
   function render(): void {
     bpcDisplay.textContent = formatNumber(store.getEffectiveBPC());
-
-    // Show phase penalty label in phases 3+
-    const phase = store.getCurrentPhase();
-    const scale = store.getClickerPhaseScale();
-    if (phase >= 3) {
-      penaltyRow.style.display = '';
-      const pct = Math.round(scale * 100);
-      penaltyLabel.textContent = `Clicker: ${pct}% (phase ${phase})`;
-    } else {
-      penaltyRow.style.display = 'none';
-    }
   }
 
   btn.addEventListener('click', handleClick);
   const unsub = store.subscribe(render);
   render();
 
-  return () => {
-    unsub();
-    clearTimeout(comboDecayTimer);
-    clearTimeout(bombTimeout);
-  };
+  return () => { unsub(); clearTimeout(comboDecayTimer); };
 }

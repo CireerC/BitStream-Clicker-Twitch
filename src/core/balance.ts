@@ -32,14 +32,7 @@ export const BALANCE = {
     maxComboMultiplier: 8,
     clicksToMaxCombo: 20,
     comboDecayMs: 1200,
-    // Phase penalty: scale applied to BPC per phase (1=full, 0.05=negligible)
-    phaseScale: [1, 1, 0.4, 0.1, 0.02] as number[],
-    // Bomb mechanic: every bombMinClicks–bombMaxClicks clicks a bomb appears
-    bombMinClicks: 18,
-    bombMaxClicks: 35,
-    bombDurationMs: 2000,
-    bombBitLossPct: 0.03,  // 3% bits lost on bomb click
-    // Auto-clicker soft cap: CPS above this reduces effective BPC
+    // Anti-autoclicker: CPS above this softly reduces effective BPC
     cpsLimit: 6,
   },
 

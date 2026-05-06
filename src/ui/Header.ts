@@ -1,6 +1,7 @@
 import { store } from '../core/GameStore.js';
 import { formatNumber } from '../core/balance.js';
 import { saveGame, deleteSave } from '../core/SaveSystem.js';
+import { resetPlayerLeaderboard } from '../modules/leaderboard/Leaderboard.js';
 
 export function mountHeader(container: HTMLElement): () => void {
   container.innerHTML = `
@@ -43,9 +44,11 @@ export function mountHeader(container: HTMLElement): () => void {
   });
 
   btnReset.addEventListener('click', () => {
-    if (confirm('Reset all progress? This cannot be undone.')) {
-      deleteSave();
-      window.location.reload();
+    if (confirm('Réinitialiser toute la progression ? Cette action est irréversible.')) {
+      resetPlayerLeaderboard().finally(() => {
+        deleteSave();
+        window.location.reload();
+      });
     }
   });
 

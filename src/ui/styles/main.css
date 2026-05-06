@@ -1162,6 +1162,26 @@ html, body {
   box-shadow: 0 0 10px var(--accent);
 }
 
+.aim-target--bomb {
+  background: #440000;
+  border-color: #ff4444;
+  color: transparent;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bomb-aim-pulse 0.4s ease infinite alternate;
+  cursor: crosshair;
+}
+.aim-target--bomb::after { content: '💣'; font-size: 1rem; }
+
+@keyframes bomb-aim-pulse {
+  from { box-shadow: 0 0 6px #ff4444; }
+  to   { box-shadow: 0 0 18px #ff4444, 0 0 30px #ff000055; }
+}
+
+.aim-floater--bomb { color: #ff4444 !important; font-weight: 700; }
+
 .aim-target--hit {
   background: #ffffff !important;
   box-shadow: 0 0 22px #fff !important;
@@ -1866,29 +1886,6 @@ html, body {
   .combo-bar { margin-top: 6px; }
 }
 
-/* ── Clicker bomb styles ──────────────────────────────────────────────────── */
-.click-btn--bomb {
-  background: #550000 !important;
-  border-color: #ff4444 !important;
-  animation: bomb-pulse 0.3s ease infinite alternate;
-}
-.click-btn--bomb .click-btn__icon { color: #ff4444 !important; }
-.click-btn--boom { animation: boom-shake 0.4s ease !important; }
-
-@keyframes bomb-pulse {
-  from { box-shadow: 0 0 8px #ff4444; }
-  to   { box-shadow: 0 0 20px #ff4444, 0 0 40px #ff000066; }
-}
-@keyframes boom-shake {
-  0%  { transform: translate(0, 0); }
-  20% { transform: translate(-6px, 2px); }
-  40% { transform: translate(6px, -2px); }
-  60% { transform: translate(-4px, 4px); }
-  80% { transform: translate(4px, -4px); }
-  100%{ transform: translate(0, 0); }
-}
-
-.click-floater--bomb { color: #ff4444; font-weight: 700; }
 
 /* Generator milestone badge */
 .gen-card__milestone {

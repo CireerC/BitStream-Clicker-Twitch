@@ -170,14 +170,8 @@ class GameStore {
     return this.getRawBPS() * this.getPassiveMultiplier();
   }
 
-  /** BPC reduced in later phases so clicker stays relevant only in early game */
-  getClickerPhaseScale(): number {
-    const phase = this.getCurrentPhase();
-    return BALANCE.clicker.phaseScale[phase - 1] ?? 0.02;
-  }
-
   getEffectiveBPC(): number {
-    return BALANCE.clicker.baseBitsPerClick * this.getClickMultiplier() * this.getClickerPhaseScale();
+    return BALANCE.clicker.baseBitsPerClick * this.getClickMultiplier();
   }
 
   // ── Phases ────────────────────────────────────────────────────────────────

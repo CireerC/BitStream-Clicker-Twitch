@@ -2,8 +2,8 @@ import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
 import { isSupabaseConfigured, fetchLeaderboard, upsertScore, type LBEntry } from '../../integrations/supabase/LeaderboardDB.js';
 
-export const NAME_KEY  = 'bs_player_name';
-const BEST_KEY  = 'bs_player_best';
+export const NAME_KEY = 'bs_player_name';
+export const BEST_KEY = 'bs_player_best';
 const POLL_MS   = 2 * 60 * 1000;   // refresh leaderboard every 2 min
 const SUBMIT_MS = 5 * 60 * 1000;   // push score every 5 min
 
@@ -35,6 +35,16 @@ export function getPlayerName(): string {
 
 export function savePlayerName(name: string): void {
   localStorage.setItem(NAME_KEY, name);
+}
+
+/** Called on full game reset: clear local data and zero-out Supabase score */
+export async function resetPlayerLeaderboard(): Promise<void> {
+  const name = getPlayerName();
+  localStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(BEST_KEY);
+  if (name && isSupabaseConfigured()) {
+    try { await upsertScore(name, 0); } catch { /* silent */ }
+  }
 }
 
 function getPlayerBest(): number {
