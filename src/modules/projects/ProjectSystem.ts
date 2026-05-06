@@ -30,7 +30,11 @@ function triggerEndgame(): void {
             <span class="endgame-stat__value mono">${store.getState().projects.filter(p => p.purchased).length} / ${BALANCE.projects.length}</span>
           </div>
         </div>
-        <p class="endgame-modal__continue">Le réseau continue de tourner. Il y a toujours plus à accumuler.</p>
+        <p class="endgame-modal__continue">
+          Le réseau continue de tourner. Deux projets d'expansion t'attendent encore —
+          <em>Expansion Galactique</em> et <em>Singularité Finale</em>.
+          Il y a toujours plus à accumuler.
+        </p>
         <button class="endgame-close" id="endgame-close">Continuer à jouer</button>
       </div>
     </div>

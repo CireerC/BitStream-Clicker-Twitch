@@ -38,6 +38,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
             <span class="stats-label" id="label-bps">BPS</span>
             <span class="stats-value mono" id="stat-bps">0</span>
           </div>
+          <canvas id="bps-graph" class="bps-graph" width="160" height="28"></canvas>
           <div class="stats-card__row">
             <span class="stats-label" id="label-bpc">BPC</span>
             <span class="stats-value mono" id="stat-bpc">0</span>
@@ -196,6 +197,55 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       statBurst.textContent = `×${m.minigame} · ${rem}s`;
     }
   }
+
+  // ── BPS sparkline graph ───────────────────────────────────────────────────
+  const bpsCanvas = root.querySelector<HTMLCanvasElement>('#bps-graph')!;
+  const bpsCtx    = bpsCanvas.getContext('2d')!;
+  const BPS_SAMPLES = 60;
+  const bpsHistory: number[] = [];
+  let lastBpsSample = 0;
+
+  function sampleAndDrawBps(): void {
+    const now = Date.now();
+    if (now - lastBpsSample < 3000) return;
+    lastBpsSample = now;
+    bpsHistory.push(store.getEffectiveBPS());
+    if (bpsHistory.length > BPS_SAMPLES) bpsHistory.shift();
+
+    const W = bpsCanvas.width;
+    const H = bpsCanvas.height;
+    bpsCtx.clearRect(0, 0, W, H);
+    if (bpsHistory.length < 2) return;
+
+    const max = Math.max(...bpsHistory, 0.001);
+
+    // Fill area under line
+    bpsCtx.beginPath();
+    bpsHistory.forEach((v, i) => {
+      const x = (i / (BPS_SAMPLES - 1)) * W;
+      const y = H - (v / max) * (H - 2) - 1;
+      if (i === 0) bpsCtx.moveTo(x, y); else bpsCtx.lineTo(x, y);
+    });
+    bpsCtx.lineTo(((bpsHistory.length - 1) / (BPS_SAMPLES - 1)) * W, H);
+    bpsCtx.lineTo(0, H);
+    bpsCtx.closePath();
+    bpsCtx.fillStyle = 'rgba(255,255,255,0.04)';
+    bpsCtx.fill();
+
+    // Line
+    bpsCtx.beginPath();
+    bpsHistory.forEach((v, i) => {
+      const x = (i / (BPS_SAMPLES - 1)) * W;
+      const y = H - (v / max) * (H - 2) - 1;
+      if (i === 0) bpsCtx.moveTo(x, y); else bpsCtx.lineTo(x, y);
+    });
+    bpsCtx.strokeStyle = 'rgba(255,255,255,0.5)';
+    bpsCtx.lineWidth = 1.5;
+    bpsCtx.stroke();
+  }
+
+  // Sample every ~3s by piggy-backing on the store subscriber tick
+  store.subscribe(sampleAndDrawBps);
 
   // Update labels on language change and initial render
   updateLabels();

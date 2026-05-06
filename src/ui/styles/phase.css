@@ -150,6 +150,57 @@
   justify-content: center;
 }
 
+/* Mini-game difficulty variants */
+.mg-card--hard    { border-color: rgba(255, 153, 0, 0.4); }
+.mg-card--extreme { border-color: rgba(255, 68,  68, 0.5); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(255,68,68,0.12); }
+.mg-diff-badge { font-size: 0.7rem; font-weight: 700; }
+
+/* ── Phase 5 — Quantum Era visual theme ─────────────────────────────────── */
+body[data-phase="5"] {
+  --accent:        #00e5c0;
+  --border-accent: rgba(0, 229, 192, 0.18);
+  --gold:          #00e5c0;
+}
+
+body[data-phase="5"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 0%,   rgba(0, 229, 192, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 20% at 100% 100%, rgba(0, 229, 192, 0.04) 0%, transparent 60%);
+  animation: quantum-pulse 4s ease-in-out infinite;
+}
+
+@keyframes quantum-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+body[data-phase="5"] .panel-title { color: var(--accent); }
+body[data-phase="5"] .stats-value { color: var(--accent); }
+
+/* Quantum scanline overlay */
+body[data-phase="5"] .layout::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 229, 192, 0.015) 3px,
+    rgba(0, 229, 192, 0.015) 4px
+  );
+}
+
+/* Phase 5 badge in stats */
+body[data-phase="5"] #stat-phase { color: var(--accent); font-weight: 700; }
+
 .mg-result--win  span { color: var(--accent); font-weight: 700; }
 .mg-result--lose span { color: var(--accent2); font-weight: 700; }
 .mg-result small { color: var(--text-1); font-size: 0.75rem; }

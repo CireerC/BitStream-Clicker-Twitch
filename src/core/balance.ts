@@ -402,6 +402,30 @@ export const BALANCE = {
       effect: { endgame: true },
       requires: ['marche_libre', 'protocole_casino', 'protocole_precision'] as string[],
     },
+    // ── Infinite Mode ─────────────────────────────────────────────────────────
+    // These unlock after Launch the Protocol for players who want to keep going.
+    {
+      id: 'expansion_galactique',
+      name: '🌌 Expansion Galactique',
+      description: 'BitStream s\'étend au-delà de la Terre. Tous les gains +200%.',
+      category: 'endgame' as const,
+      cost: 10_000_000_000,
+      unlockAt: 5_000_000_000,
+      phase: 5,
+      effect: { globalBonus: 2.0 },
+      requires: ['endgame_protocol'] as string[],
+    },
+    {
+      id: 'singularite_finale',
+      name: '♾️ Singularité Finale',
+      description: 'Le réseau devient conscient. Modules +200%, générateurs +400%.',
+      category: 'endgame' as const,
+      cost: 100_000_000_000,
+      unlockAt: 50_000_000_000,
+      phase: 5,
+      effect: { moduleBonus: 2.0, bpsBonus: 4.0 },
+      requires: ['expansion_galactique'] as string[],
+    },
   ],
 
   // ─── PHASES ───────────────────────────────────────────────────────────────
@@ -555,4 +579,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'phase_3',        name: 'Corporate Attention',    description: 'Phase 3 atteinte.',              reward: 30_000,      condition: { type: 'phase',             value: 3          } },
   { id: 'phase_4',        name: 'Enterprise Scale',       description: 'Phase 4 atteinte.',              reward: 500_000,     condition: { type: 'phase',             value: 4          } },
   { id: 'phase_5',        name: 'Quantum Era',            description: 'Phase 5 atteinte.',              reward: 5_000_000,   condition: { type: 'phase',             value: 5          } },
+  // Post-endgame infinite goals
+  { id: 'all_projects',   name: 'Maître Architecte',      description: 'Tous les projets complétés.',    reward: 100_000_000, condition: { type: 'projectsPurchased', value: 15         } },
+  { id: 'earned_10b',     name: 'Au-delà du Protocole',   description: '10 milliards de bits gagnés.',   reward: 200_000_000, condition: { type: 'totalBitsEarned',   value: 10_000_000_000  } },
+  { id: 'earned_100b',    name: 'Transcendance',          description: '100 milliards de bits gagnés.',  reward: 2_000_000_000, condition: { type: 'totalBitsEarned', value: 100_000_000_000 } },
 ];

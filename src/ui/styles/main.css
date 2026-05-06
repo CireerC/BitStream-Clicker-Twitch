@@ -1905,6 +1905,17 @@ html, body {
   opacity: 0.8;
 }
 
+/* ── BPS Sparkline graph ────────────────────────────────────────────────── */
+.bps-graph {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: 28px;
+  border-bottom: 1px solid #2a2a2a;
+  margin: 2px 0 6px;
+  opacity: 0.85;
+}
+
 /* ── Achievement Toasts ─────────────────────────────────────────────────── */
 .achievement-toast {
   position: fixed;

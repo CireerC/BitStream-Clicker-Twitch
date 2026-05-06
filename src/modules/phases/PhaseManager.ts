@@ -13,9 +13,11 @@ export function onPhaseUnlock(cb: PhaseCallback): void {
 /** Start watching for phase transitions. Returns cleanup. */
 export function startPhaseManager(): () => void {
   let lastPhase = store.getCurrentPhase();
+  document.body.dataset.phase = String(lastPhase);
 
   const unsub = store.subscribe(() => {
     const current = store.getCurrentPhase();
+    document.body.dataset.phase = String(current);
     if (current > lastPhase) {
       lastPhase = current;
       store.setState(s => { s.lastPhase = current; });
