@@ -1,13 +1,17 @@
-import { store } from '../../core/GameStore.js';
-import { formatNumber } from '../../core/balance.js';
+import { store, } from '../../core/GameStore.js';
+import { formatNumber, BALANCE } from '../../core/balance.js';
 
-const GAME_DURATION   = 15;
-const TARGET_LIFETIME = 1400;
-const BOMB_LIFETIME   = 1200;   // bombs disappear faster
-const SPAWN_INTERVAL  = 500;
-const SPAWN_CHANCE    = 0.85;
-const BOMB_CHANCE     = 0.18;   // ~18% of spawns are bombs
-const BOMB_BET_LOSS   = 0.12;   // clicking a bomb costs 12% of bet
+const AT = BALANCE.modules.aimtrainer;
+
+const GAME_DURATION   = AT.gameDuration;
+const TARGET_LIFETIME = AT.targetLifetime;
+const BOMB_LIFETIME   = AT.bombLifetime;
+const SPAWN_INTERVAL  = AT.spawnInterval;
+const SPAWN_CHANCE    = AT.spawnChance;
+const BOMB_CHANCE     = AT.bombChance;
+const BOMB_BET_LOSS   = AT.bombBetLoss;
+const SCORE_THRESHOLD = AT.scoreThreshold;
+const SCORE_DIVISOR   = AT.scoreDivisor;
 
 // Points per hit based on target size:
 //   small (≤ 28px) → 3 pts, medium (≤ 42px) → 2 pts, large → 1 pt
@@ -16,22 +20,6 @@ function pointsForSize(size: number): number {
   if (size <= 42) return 2;
   return 1;
 }
-
-// HIGH RISK / HIGH REWARD payout formula:
-//   returnMult = max(0, (points - SCORE_THRESHOLD) / SCORE_DIVISOR)
-//   totalReturn = bet × returnMult × store.getModuleMultiplier()
-//
-// Breakpoints (without module upgrades, moduleMult = 1):
-//   < 10 pts  : 0× (lose entire bet)
-//     25 pts  : 1.0× (break even)
-//     40 pts  : 2.0× (win +100%)
-//     55 pts  : 3.0× (win +200%)
-//
-// With max module upgrades (moduleMult ≈ 3.8):
-//     25 pts  : 3.8× (win +280%)
-//     40 pts  : 7.6× (win +660%)
-const SCORE_THRESHOLD = 10;
-const SCORE_DIVISOR   = 15;
 
 export function mountAimTrainer(container: HTMLElement): () => void {
   let gameActive = false;

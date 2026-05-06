@@ -1,4 +1,4 @@
-window.store.addBits(1000000)
-
-Mettre en place un peu plus de projet et des nouveau moduels
-
+Commandes de debug console (F12) :
+  window.store.addBits(1000000)       — ajouter 1M bits
+  window.store.getState()             — voir l'état complet
+  window.store.resetState()           — reset la partie

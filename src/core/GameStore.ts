@@ -29,6 +29,7 @@ class GameStore {
   private state: GameState = defaultState();
   private listeners = new Set<Listener>();
   private checkingAchievements = false;
+  private achSnapshot = { totalClicks: -1, totalBitsEarned: -1, generatorsOwned: -1, projectsPurchased: -1, phase: -1 };
 
   getState(): Readonly<GameState> { return this.state; }
 
@@ -46,11 +47,27 @@ class GameStore {
     if (this.checkingAchievements) return;
     if (this.state.achievements.length >= ACHIEVEMENTS.length) return;
 
-    this.checkingAchievements = true;
     const s = this.state;
     const totalGenerators = s.generators.reduce((sum, g) => sum + g.owned, 0);
     const projectsPurchased = s.projects.filter(p => p.purchased).length;
     const phase = this.getCurrentPhase();
+
+    const snap = this.achSnapshot;
+    if (
+      s.totalClicks     === snap.totalClicks     &&
+      s.totalBitsEarned === snap.totalBitsEarned &&
+      totalGenerators   === snap.generatorsOwned &&
+      projectsPurchased === snap.projectsPurchased &&
+      phase             === snap.phase
+    ) return;
+
+    snap.totalClicks      = s.totalClicks;
+    snap.totalBitsEarned  = s.totalBitsEarned;
+    snap.generatorsOwned  = totalGenerators;
+    snap.projectsPurchased = projectsPurchased;
+    snap.phase            = phase;
+
+    this.checkingAchievements = true;
     let anyNew = false;
 
     for (const ach of ACHIEVEMENTS) {

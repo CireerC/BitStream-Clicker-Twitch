@@ -177,7 +177,6 @@ const rapidDoubleGame: MiniGame = {
       }, { once: true });
     }
 
-    firstTarget;
     spawnPair();
     return () => container.querySelectorAll('.mg-target').forEach(t => t.remove());
   },
@@ -259,7 +258,7 @@ export function startMiniGameManager(): () => void {
       clearInterval(countdown);
       if (resultTimer !== null) clearTimeout(resultTimer);
       cleanupGame?.();
-      dismiss(false);
+      dismiss(true);
     });
 
     function onWin(): void {

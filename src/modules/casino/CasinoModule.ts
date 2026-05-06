@@ -1,5 +1,5 @@
 import { store } from '../../core/GameStore.js';
-import { formatNumber } from '../../core/balance.js';
+import { formatNumber, BALANCE } from '../../core/balance.js';
 
 // ── Types cartes ──────────────────────────────────────────────────────────────
 type Suit = '♠' | '♣' | '♥' | '♦';
@@ -151,9 +151,7 @@ export function mountCasino(container: HTMLElement): () => void {
   // ── Streak system ──────────────────────────────────────────────────────────
   let winStreak = 0;
   let streakBonusEndsAt = 0;
-  const STREAK_THRESHOLD  = 3;    // wins needed to activate bonus
-  const STREAK_BONUS      = 0.10; // +10% on wins
-  const STREAK_DURATION   = 30_000; // 30 s
+  const { streakThreshold: STREAK_THRESHOLD, streakBonus: STREAK_BONUS, streakDuration: STREAK_DURATION } = BALANCE.modules.casino;
 
   function streakMultiplier(): number {
     return Date.now() < streakBonusEndsAt ? 1 + STREAK_BONUS : 1;

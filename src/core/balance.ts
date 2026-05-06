@@ -493,6 +493,26 @@ export const BALANCE = {
 
   // ─── SAVE ─────────────────────────────────────────────────────────────────
   save: { intervalMs: 10_000 },
+
+  // ─── MODULES ──────────────────────────────────────────────────────────────
+  modules: {
+    aimtrainer: {
+      gameDuration:   15,
+      targetLifetime: 1400,
+      bombLifetime:   1200,
+      spawnInterval:  500,
+      spawnChance:    0.85,
+      bombChance:     0.18,    // ~18% of spawns are bombs
+      bombBetLoss:    0.12,    // clicking a bomb costs 12% of bet
+      scoreThreshold: 10,      // minimum score to get any return
+      scoreDivisor:   15,      // (score - threshold) / divisor = returnMult
+    },
+    casino: {
+      streakThreshold: 3,      // consecutive wins to activate streak bonus
+      streakBonus:     0.10,   // +10% on all wins during streak
+      streakDuration:  30_000, // streak bonus lasts 30 s
+    },
+  },
 } as const;
 
 // ── Utility functions ──────────────────────────────────────────────────────
