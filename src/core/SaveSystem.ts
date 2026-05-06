@@ -30,11 +30,7 @@ export function loadGame(): boolean {
     const saved = JSON.parse(raw) as Partial<GameState>;
 
     if (saved.lastSaveTime) {
-      // Use the player's upgraded offline cap if deep_cache was researched
-      const offlineCapMs = saved.research?.techPurchased?.includes('deep_cache')
-        ? 16 * 3_600_000
-        : BALANCE.offline.maxOfflineMs;
-
+      const offlineCapMs = BALANCE.offline.maxOfflineMs;
       const offlineMs = Math.min(Date.now() - saved.lastSaveTime, offlineCapMs);
 
       if (offlineMs > 5_000) {
@@ -43,9 +39,10 @@ export function loadGame(): boolean {
           const gs = saved.generators?.find(g => g.id === gen.id);
           if (gs) rawBps += gs.owned * gen.baseBps;
         }
-        const passiveMulti = saved.multipliers?.passive ?? 1;
-        const globalMulti  = saved.multipliers?.global  ?? 1;
-        const bps = rawBps * passiveMulti * globalMulti;
+        const m = saved.multipliers as Record<string, number> | undefined;
+        const bpsBonus    = m?.bpsBonus    ?? 0;
+        const globalBonus = m?.globalBonus ?? 0;
+        const bps = rawBps * (1 + bpsBonus + globalBonus);
         const earned = bps * (offlineMs / 1000) * BALANCE.offline.efficiency;
 
         saved.bits = (saved.bits ?? 0) + earned;

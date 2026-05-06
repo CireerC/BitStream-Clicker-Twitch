@@ -23,18 +23,17 @@ export interface TwitchState {
 }
 
 export interface MultiplierState {
-  click: number;
-  passive: number;
-  global: number;
-  twitch: number;
-  minigame: number;
-  minigameEndsAt: number;
-  research: number;          // research rate multiplier (from techs)
-}
+  // ── Additive bonuses from projects (0.0 = no bonus, 1.0 = +100%) ──────────
+  bpsBonus: number;           // added to passive production multiplier
+  clickBonus: number;         // added to BPC multiplier
+  globalBonus: number;        // added to all gains (BPS, BPC, modules)
+  moduleBonus: number;        // added to casino / aim trainer payout multiplier
+  maxComboOverride: number;   // 0 = use BALANCE default, positive = override
 
-export interface ResearchState {
-  points: number;            // current RP
-  techPurchased: string[];   // IDs of purchased technologies
+  // ── Independent multiplicative factors (not from projects) ────────────────
+  twitch: number;             // 1.5 when stream is live, 1 otherwise
+  minigame: number;           // active burst multiplier value (e.g. 4)
+  minigameEndsAt: number;     // Unix timestamp (ms) when burst expires
 }
 
 export interface GameState {
@@ -45,10 +44,9 @@ export interface GameState {
   generators: GeneratorState[];
   projects: ProjectState[];
   multipliers: MultiplierState;
-  research: ResearchState;
   twitch: TwitchState;
-  lastPhase: number;         // highest phase reached (for notifications)
+  lastPhase: number;
   lastSaveTime: number;
   lastTickTime: number;
-  language: 'en' | 'fr';     // current language preference
+  language: 'en' | 'fr';
 }

@@ -49,16 +49,18 @@ function cardHTML(c: Card): string {
 }
 
 // ── Secteurs de la roue ───────────────────────────────────────────────────────
-// EV ≈ 21.5/8 = 2.7 (légèrement favorable au joueur, jackpot raisonnable à ×10)
+// 3 secteurs perdants / 5 gagnants. Jackpot ×15.
+// Sans module upgrades : EV ≈ (0.5+1+2+3+5+15)/8 - 3/8 ≈ 2.8 (légèrement favorable)
+// Avec module multiplier max (×3.8), les profits sont x3.8 → très forte récompense.
 const WHEEL = [
-  { label: 'PERTE',  mult: 0,   col: '#881111', txt: '#fff' },
-  { label: '×0.5',  mult: 0.5, col: '#333333', txt: '#fff' },
-  { label: 'PERTE', mult: 0,   col: '#aa2222', txt: '#fff' },
-  { label: '×1',    mult: 1,   col: '#555555', txt: '#fff' },
-  { label: '×2',    mult: 2,   col: '#888888', txt: '#000' },
-  { label: '×3',    mult: 3,   col: '#bbbbbb', txt: '#000' },
-  { label: '×5',    mult: 5,   col: '#e8e8e8', txt: '#000' },
-  { label: '💎',    mult: 10,  col: '#ffcc00', txt: '#000' },
+  { label: 'PERTE',  mult: 0,    col: '#881111', txt: '#fff' },
+  { label: '×0.5',  mult: 0.5,  col: '#333333', txt: '#fff' },
+  { label: 'PERTE', mult: 0,    col: '#aa2222', txt: '#fff' },
+  { label: '×1',    mult: 1,    col: '#555555', txt: '#fff' },
+  { label: '×2',    mult: 2,    col: '#888888', txt: '#000' },
+  { label: '×3',    mult: 3,    col: '#bbbbbb', txt: '#000' },
+  { label: '×5',    mult: 5,    col: '#e8e8e8', txt: '#000' },
+  { label: '💎×15', mult: 15,   col: '#ffcc00', txt: '#000' },
 ];
 
 function drawWheel(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number): void {
@@ -461,11 +463,15 @@ export function mountCasino(container: HTMLElement): () => void {
   function bjFinish(results: BjResult[]): void {
     bjPhase = 'done';
     let totalNet = 0;
+    const moduleMult = store.getModuleMultiplier();
 
     results.forEach((r, i) => {
       const bet = bjHandBets[i];
       if (r.won) {
-        const profit = r.bonus ? Math.floor(bet * 1.5) : bet;
+        // Base profit: bet×1.5 for blackjack natural, bet×1 for normal win.
+        // Module multiplier applies only to the profit (bet is always refunded).
+        const baseProfit = r.bonus ? Math.floor(bet * 1.5) : bet;
+        const profit = Math.floor(baseProfit * moduleMult);
         store.addBits(bet + profit);
         totalNet += profit;
         addHistory('🃏', true, profit);
@@ -537,7 +543,10 @@ export function mountCasino(container: HTMLElement): () => void {
       const drawnRank = RANKS[Math.floor(Math.random() * 13)];
       const drawn: Card = { suit: drawnSuit, rank: drawnRank };
       const won = drawnSuit === selectedSuit;
-      const net = won ? bet * 2 : -bet; // ×3 return → net profit = +2×bet
+      // ×4 total return (×3 net profit) × module multiplier on profit
+      const moduleMult = store.getModuleMultiplier();
+      const profit = won ? Math.floor(bet * 3 * moduleMult) : 0;
+      const net = won ? profit : -bet;
       const netSign = net >= 0 ? '+' : '';
 
       const resultEl = contentEl.querySelector<HTMLElement>('#suits-result')!;
@@ -552,8 +561,8 @@ export function mountCasino(container: HTMLElement): () => void {
       `;
 
       if (won) {
-        store.addBits(bet * 3);
-        addHistory('♥', true, bet * 2);
+        store.addBits(bet + profit);
+        addHistory('♥', true, profit);
       } else {
         addHistory('♥', false, bet);
       }
@@ -633,7 +642,16 @@ export function mountCasino(container: HTMLElement): () => void {
         resultEl.style.display = 'block';
 
         if (sector.mult > 0) {
-          const gross = Math.floor(bet * sector.mult);
+          // Apply module multiplier only to the PROFIT (mult > 1).
+          // Partial returns (×0.5, ×1) are refunded as-is — no boost on losses.
+          const moduleMult = store.getModuleMultiplier();
+          let gross: number;
+          if (sector.mult > 1) {
+            const profit = Math.floor(bet * (sector.mult - 1) * moduleMult);
+            gross = bet + profit;
+          } else {
+            gross = Math.floor(bet * sector.mult); // partial refund, no boost
+          }
           const net = gross - bet;
           const netSign = net >= 0 ? '+' : '';
           store.addBits(gross);

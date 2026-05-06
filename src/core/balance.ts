@@ -6,22 +6,21 @@
  *   https://www.gamedeveloper.com/design/the-math-of-idle-games-part-i
  *
  * Core cost formula:  cost(n) = baseCost × growthRate^n
- * Bulk purchase (geometric series):
- *   cost(owned→owned+k) = baseCost × growthRate^owned × (growthRate^k − 1) / (growthRate − 1)
  *
- * ROI balance target:
- *   roi(n) = cost(n) / effectiveBPS
- *   Each generator tier targets roi ≈ 2× the previous tier.
+ * Design philosophy:
+ *   - Generators are the passive baseline (~30% of total income for active players)
+ *   - Modules (casino, aim trainer) are the HIGH RISK / HIGH REWARD path — that is
+ *     how fast players advance. Safe players advance too, but ~2× slower.
+ *   - Projects provide ADDITIVE bonuses visible to the player (no hidden stacking).
+ *   - Paliers marqués: milestones on generators create sudden jumps in power;
+ *     late generators have long ROI forcing players to use modules to progress.
  *
- * Game arc: ~10 h of active play across 5 phases.
- *   Phase 1 exit:   100K total bits   (~1.5 h)
- *   Phase 2 exit:     2M total bits   (~3 h)
- *   Phase 3 exit:    50M total bits   (~5 h)
- *   Phase 4 exit:     1B total bits   (~8 h)
- *   Endgame: final project purchase at 10B bits
- *
- * Clicker: useful in phases 1–2, progressively weaker afterwards.
- * Bombs: appear every ~20 clicks to discourage autoclickers.
+ * Game arc: ~6–10 h of play (active risky ≈ 6 h, safe idle ≈ 10–12 h).
+ *   Phase 1 exit:   5 K total bits   (~30 min)
+ *   Phase 2 exit: 120 K total bits   (~1.5 h)
+ *   Phase 3 exit:   3 M total bits   (~3 h)
+ *   Phase 4 exit:  75 M total bits   (~6 h)
+ *   Endgame:        2 B total bits
  */
 
 export const BALANCE = {
@@ -29,32 +28,37 @@ export const BALANCE = {
   clicker: {
     baseBitsPerClick: 1,
     comboWindowMs: 500,
-    maxComboMultiplier: 8,
+    maxComboMultiplier: 6,      // raised to 10 by combo_amplifie project
     clicksToMaxCombo: 20,
     comboDecayMs: 1200,
-    // Anti-autoclicker: CPS above this softly reduces effective BPC
-    cpsLimit: 6,
+    cpsLimit: 6,                // anti-autoclicker soft cap (CPS penalty above this)
   },
 
   // ─── GENERATORS ───────────────────────────────────────────────────────────
-  // growthRate = 1.17 → ~17% more expensive per purchase.
-  // baseBps reduced ~30% vs previous version for longer game arc.
-  // milestones: cumulative ×multiplier when owned count is reached.
+  //
+  // growthRate 1.15 → ~15% more expensive per unit.
+  // ROI (return on investment) = baseCost / baseBps:
+  //   Early generators: ~250–450 s  (4–7 min) — quick, fun, engaging
+  //   Late generators:  ~3000–9000 s (55–150 min) — the "wall" that makes
+  //     modules the natural fast path in phases 3–5.
+  //
+  // Milestones apply retroactively to all owned (the "palier marqué" moment):
+  //   × 2 at 10 | × 3 at 25 | × 5 at 50 | × 10 at 100
   generators: [
     {
       id: 'bit_miner',
       name: 'Mineur de Bits',
       description: 'Un script basique qui extrait les bits lentement.',
       emoji: '⛏️',
-      baseCost: 30,
-      growthRate: 1.17,
-      baseBps: 0.07,
+      baseCost: 25,
+      growthRate: 1.15,
+      baseBps: 0.10,            // ROI ≈ 250 s (4 min)
       unlockAt: 0,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -62,31 +66,31 @@ export const BALANCE = {
       name: 'Routeur de Paquets',
       description: 'Achemine des paquets réseau contre rémunération.',
       emoji: '📡',
-      baseCost: 200,
-      growthRate: 1.17,
-      baseBps: 0.35,
-      unlockAt: 100,
+      baseCost: 160,
+      growthRate: 1.15,
+      baseBps: 0.55,            // ROI ≈ 291 s
+      unlockAt: 80,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
       id: 'data_farm',
       name: 'Ferme de Données',
-      description: 'Une petite ferme de bots générateurs de bits.',
+      description: 'Une ferme de bots générateurs de bits.',
       emoji: '🌾',
-      baseCost: 1_000,
-      growthRate: 1.17,
-      baseBps: 2.1,
-      unlockAt: 600,
+      baseCost: 900,
+      growthRate: 1.15,
+      baseBps: 3.0,             // ROI ≈ 300 s
+      unlockAt: 500,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -94,15 +98,15 @@ export const BALANCE = {
       name: 'Réseau Neuronal',
       description: 'Réseau auto-optimisé de génération de bits.',
       emoji: '🧠',
-      baseCost: 6_000,
-      growthRate: 1.17,
-      baseBps: 14,
-      unlockAt: 4_000,
+      baseCost: 5_500,
+      growthRate: 1.15,
+      baseBps: 16,              // ROI ≈ 344 s
+      unlockAt: 3_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -110,15 +114,15 @@ export const BALANCE = {
       name: 'Rig Quantique',
       description: 'Récolte de bits par intrication quantique.',
       emoji: '⚛️',
-      baseCost: 40_000,
-      growthRate: 1.17,
-      baseBps: 105,
-      unlockAt: 30_000,
+      baseCost: 35_000,
+      growthRate: 1.15,
+      baseBps: 90,              // ROI ≈ 389 s
+      unlockAt: 22_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -126,31 +130,31 @@ export const BALANCE = {
       name: 'Singularité de Bits',
       description: 'Un trou noir qui convertit la matière en bits.',
       emoji: '🕳️',
-      baseCost: 400_000,
-      growthRate: 1.17,
-      baseBps: 1_050,
-      unlockAt: 300_000,
+      baseCost: 280_000,
+      growthRate: 1.15,
+      baseBps: 640,             // ROI ≈ 438 s
+      unlockAt: 180_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
       id: 'warp_core',
       name: 'Noyau de Distorsion',
-      description: 'Courbe l\'espace-temps pour accélérer la production.',
+      description: "Courbe l'espace-temps pour accélérer la production.",
       emoji: '🌀',
-      baseCost: 10_000_000,
-      growthRate: 1.17,
-      baseBps: 14_000,
-      unlockAt: 4_000_000,
+      baseCost: 5_000_000,
+      growthRate: 1.15,
+      baseBps: 1_500,           // ROI ≈ 3 333 s (55 min) — le premier vrai MUUR
+      unlockAt: 3_500_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -158,15 +162,15 @@ export const BALANCE = {
       name: 'Robinet Dimensionnel',
       description: 'Siphonne l\'énergie des dimensions parallèles.',
       emoji: '🔮',
-      baseCost: 200_000_000,
-      growthRate: 1.17,
-      baseBps: 245_000,
-      unlockAt: 100_000_000,
+      baseCost: 100_000_000,
+      growthRate: 1.15,
+      baseBps: 20_000,          // ROI ≈ 5 000 s (83 min)
+      unlockAt: 65_000_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -174,15 +178,15 @@ export const BALANCE = {
       name: 'Moteur de Réalité',
       description: 'Redéfinit les constantes physiques pour un rendement maximal.',
       emoji: '🌌',
-      baseCost: 6_000_000_000,
-      growthRate: 1.17,
-      baseBps: 4_900_000,
-      unlockAt: 2_000_000_000,
+      baseCost: 2_500_000_000,
+      growthRate: 1.15,
+      baseBps: 350_000,         // ROI ≈ 7 143 s (119 min)
+      unlockAt: 1_500_000_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
     {
@@ -190,294 +194,260 @@ export const BALANCE = {
       name: "L'Omnibus",
       description: 'Un hypercalculateur incompréhensible. Fait tout tourner.',
       emoji: '♾️',
-      baseCost: 200_000_000_000,
-      growthRate: 1.17,
-      baseBps: 140_000_000,
+      baseCost: 90_000_000_000,
+      growthRate: 1.15,
+      baseBps: 10_000_000,      // ROI ≈ 9 000 s (150 min)
       unlockAt: 60_000_000_000,
       milestones: [
         { owned: 10,  multiplier: 2  },
-        { owned: 25,  multiplier: 4  },
-        { owned: 50,  multiplier: 8  },
-        { owned: 100, multiplier: 20 },
+        { owned: 25,  multiplier: 3  },
+        { owned: 50,  multiplier: 5  },
+        { owned: 100, multiplier: 10 },
       ],
     },
   ],
 
-  // ─── PROJECTS ────────────────────────────────────────────────────────────
+  // ─── PROJECTS ─────────────────────────────────────────────────────────────
+  //
+  // All bonuses are ADDITIVE (not multiplicative stacking).
+  // Effect fields:
+  //   bpsBonus    — added to the passive production multiplier  (0.25 = +25%)
+  //   clickBonus  — added to the BPC multiplier                 (0.60 = +60%)
+  //   globalBonus — added to ALL gains (BPS + BPC + modules)    (1.00 = +100%)
+  //   moduleBonus — added to casino / aim trainer payout        (0.30 = +30%)
+  //   maxCombo    — override max combo multiplier (6 → 10)
+  //   unlocks     — 'trade' | 'casino' | 'aimtrainer'
+  //   endgame     — triggers victory screen
+  //
+  // Category determines the section header shown in the Projects panel.
   projects: [
+    // ── Phase 1 ──────────────────────────────────────────────────────────
+    {
+      id: 'overclock_initial',
+      name: 'Overclock Initial',
+      description: 'Optimise les scripts de base. Tous les générateurs +25% de production.',
+      category: 'production' as const,
+      cost: 400,
+      unlockAt: 250,
+      phase: 1,
+      effect: { bpsBonus: 0.25 },
+      requires: [] as string[],
+    },
+    {
+      id: 'combo_amplifie',
+      name: 'Combo Amplifié',
+      description: 'Entraîne les réflexes du streamer. Combo maximum passe de 6× à 10×.',
+      category: 'production' as const,
+      cost: 2_500,
+      unlockAt: 2_000,
+      phase: 1,
+      effect: { maxCombo: 10 },
+      requires: [] as string[],
+    },
     // ── Phase 2 ──────────────────────────────────────────────────────────
     {
-      id: 'market_access',
-      name: 'Accès au Marché',
-      description: 'Déverrouille le Commerce : vente de générateurs au prix du marché.',
+      id: 'marche_libre',
+      name: 'Marché Libre',
+      description: 'Déverrouille la vente de générateurs au prix du marché (50% du coût actuel).',
       category: 'module' as const,
-      cost: 20_000,
-      unlockAt: 20_000,
+      cost: 12_000,
+      unlockAt: 9_000,
       phase: 2,
       effect: { unlocks: 'trade' },
       requires: [] as string[],
     },
-    // ── Phase 3 ────────────────────────────────────────────────────────────
     {
-      id: 'casino_charter',
-      name: 'Charte du Casino',
-      description: 'Déverrouille le Casino : paris risque/récompense avec multiplicateurs.',
+      id: 'protocole_casino',
+      name: 'Protocole Casino',
+      description: 'Déverrouille le Casino. Mises libres, high risk / high reward.',
       category: 'module' as const,
-      cost: 200_000,
-      unlockAt: 400_000,
-      phase: 3,
+      cost: 28_000,
+      unlockAt: 20_000,
+      phase: 2,
       effect: { unlocks: 'casino' },
       requires: [] as string[],
     },
     {
-      id: 'aim_protocol',
+      id: 'compression_reseau',
+      name: 'Compression Réseau',
+      description: 'Optimise les flux de données. Production passive +40%.',
+      category: 'production' as const,
+      cost: 50_000,
+      unlockAt: 40_000,
+      phase: 2,
+      effect: { bpsBonus: 0.40 },
+      requires: [] as string[],
+    },
+    // ── Phase 3 ──────────────────────────────────────────────────────────
+    {
+      id: 'interface_clicker',
+      name: 'Interface Clicker Pro',
+      description: 'Améliore la détection de clics. Bits par clic +60%.',
+      category: 'production' as const,
+      cost: 120_000,
+      unlockAt: 100_000,
+      phase: 3,
+      effect: { clickBonus: 0.60 },
+      requires: [] as string[],
+    },
+    {
+      id: 'protocole_precision',
       name: 'Protocole de Précision',
-      description: 'Déverrouille l\'Aim Trainer : mises en jeu, cibles à viser pour gagner des bits.',
+      description: 'Déverrouille l\'Aim Trainer. Misez et visez pour gagner gros.',
       category: 'module' as const,
-      cost: 500_000,
-      unlockAt: 800_000,
+      cost: 200_000,
+      unlockAt: 150_000,
       phase: 3,
       effect: { unlocks: 'aimtrainer' },
       requires: [] as string[],
     },
     {
-      id: 'bomb_defuser',
-      name: 'Désamorceur de Bombes',
-      description: 'Réduit la fréquence des bombes dans le clicker de 50%.',
-      category: 'upgrade' as const,
-      cost: 1_000_000,
-      unlockAt: 1_500_000,
+      id: 'module_boost_init',
+      name: 'Amplificateur de Gains',
+      description: 'Booste les récompenses des modules actifs. Casino & Aim Trainer +30%.',
+      category: 'module' as const,
+      cost: 600_000,
+      unlockAt: 400_000,
       phase: 3,
-      effect: { bombReductionRate: 0.5 },
+      effect: { moduleBonus: 0.30 },
       requires: [] as string[],
     },
-    // ── Phase 4 ─────────────────────────────────────────────────────────────
     {
-      id: 'neural_overclock',
-      name: 'Surclocking Neuronal',
-      description: 'Tous les générateurs produisent ×1.5 de façon permanente.',
-      category: 'upgrade' as const,
-      cost: 15_000_000,
-      unlockAt: 20_000_000,
+      id: 'amplification_neurale',
+      name: 'Amplification Neurale',
+      description: 'Réseau neuronal dédié à la production. Tous les générateurs +80%.',
+      category: 'production' as const,
+      cost: 900_000,
+      unlockAt: 700_000,
+      phase: 3,
+      effect: { bpsBonus: 0.80 },
+      requires: [] as string[],
+    },
+    // ── Phase 4 ──────────────────────────────────────────────────────────
+    {
+      id: 'reseau_quantique',
+      name: 'Réseau Quantique',
+      description: 'Intrication quantique des nœuds de production. Générateurs +120%.',
+      category: 'production' as const,
+      cost: 4_000_000,
+      unlockAt: 3_000_000,
       phase: 4,
-      effect: { passiveMultiplier: 1.5 },
+      effect: { bpsBonus: 1.20 },
+      requires: [] as string[],
+    },
+    {
+      id: 'table_champions',
+      name: 'Table des Champions',
+      description: 'Accès VIP aux tables haute mise. Casino & Aim Trainer +50%.',
+      category: 'module' as const,
+      cost: 10_000_000,
+      unlockAt: 7_000_000,
+      phase: 4,
+      effect: { moduleBonus: 0.50 },
+      requires: [] as string[],
+    },
+    {
+      id: 'acceleration_globale',
+      name: 'Accélération Globale',
+      description: 'Synchronise tous les systèmes. TOUS les gains +100%.',
+      category: 'global' as const,
+      cost: 20_000_000,
+      unlockAt: 15_000_000,
+      phase: 4,
+      effect: { globalBonus: 1.0 },
       requires: [] as string[],
     },
     // ── Phase 5 (Endgame) ─────────────────────────────────────────────────
+    {
+      id: 'singularite',
+      name: 'Singularité de Production',
+      description: 'Atteint le seuil de singularité computationnelle. Générateurs +200%.',
+      category: 'production' as const,
+      cost: 100_000_000,
+      unlockAt: 80_000_000,
+      phase: 5,
+      effect: { bpsBonus: 2.0 },
+      requires: [] as string[],
+    },
+    {
+      id: 'protocole_omega',
+      name: 'Protocole Oméga',
+      description: 'Réécrit les règles du jeu. Modules +100%, tous les gains +75%.',
+      category: 'global' as const,
+      cost: 250_000_000,
+      unlockAt: 200_000_000,
+      phase: 5,
+      effect: { moduleBonus: 1.0, globalBonus: 0.75 },
+      requires: [] as string[],
+    },
     {
       id: 'endgame_protocol',
       name: '🚀 LANCER LE PROTOCOLE',
       description: 'Déploie BitStream sur tous les nœuds de la Terre. Condition de victoire.',
       category: 'endgame' as const,
-      cost: 5_000_000_000,
-      unlockAt: 5_000_000_000,
+      cost: 2_000_000_000,
+      unlockAt: 2_000_000_000,
       phase: 5,
       effect: { endgame: true },
-      requires: ['market_access', 'casino_charter', 'aim_protocol'],
+      requires: ['marche_libre', 'protocole_casino', 'protocole_precision'] as string[],
     },
   ],
 
-  // ─── RESEARCH ─────────────────────────────────────────────────────────────
-  // RP/s = sqrt(effectiveBPS + 1) / rpsDiv  (rpsDiv raised for slower early RP)
-  research: {
-    rpsDiv: 4,
-
-    technologies: [
-      // ── Tier 1 ──────────────────────────────────────────────────────
-      {
-        id: 'lossless_compress',
-        name: 'Lossless Compression',
-        description: 'Compress bit streams for 15% more passive output.',
-        tier: 1, phase: 1,
-        rpCost: 100,
-        effect: { passiveMultiplier: 1.15 },
-        requires: [] as string[],
-      },
-      {
-        id: 'macro_engine',
-        name: 'Macro Engine',
-        description: 'Automate input patterns for 30% more bits per click.',
-        tier: 1, phase: 1,
-        rpCost: 160,
-        effect: { clickMultiplier: 1.3 },
-        requires: [] as string[],
-      },
-      {
-        id: 'combo_protocol',
-        name: 'Combo Protocol',
-        description: 'Extend the combo meter cap from ×8 to ×12.',
-        tier: 1, phase: 1,
-        rpCost: 300,
-        effect: { maxCombo: 12 },
-        requires: ['lossless_compress'],
-      },
-      // ── Tier 2 — Phase 2 ────────────────────────────────────────────
-      {
-        id: 'hash_sharding',
-        name: 'Hash Sharding',
-        description: 'Distributed hash tables: all generators produce ×1.35.',
-        tier: 2, phase: 2,
-        rpCost: 1_200,
-        effect: { passiveMultiplier: 1.35 },
-        requires: ['lossless_compress'],
-      },
-      {
-        id: 'rp_accelerator',
-        name: 'RP Accelerator',
-        description: 'Dedicated research cores — research rate ×1.4.',
-        tier: 2, phase: 2,
-        rpCost: 1_800,
-        effect: { researchMultiplier: 1.4 },
-        requires: ['combo_protocol'],
-      },
-      {
-        id: 'exploit_amplifier',
-        name: 'Exploit Amplifier',
-        description: 'Mini-game burst multiplier is increased.',
-        tier: 2, phase: 2,
-        rpCost: 3_000,
-        effect: { minigameRewardMult: 1.5 },
-        requires: ['macro_engine'],
-      },
-      // ── Tier 3 — Phase 3 ────────────────────────────────────────────
-      {
-        id: 'neural_amplifier',
-        name: 'Neural Amplification',
-        description: 'Deep neural nets push all generators to ×2.',
-        tier: 3, phase: 3,
-        rpCost: 24_000,
-        effect: { passiveMultiplier: 2 },
-        requires: ['hash_sharding'],
-      },
-      {
-        id: 'global_cascade',
-        name: 'Global Cascade',
-        description: 'Cascade all gains globally: ×1.75 everything.',
-        tier: 3, phase: 3,
-        rpCost: 40_000,
-        effect: { globalMultiplier: 1.75 },
-        requires: ['rp_accelerator', 'neural_amplifier'],
-      },
-      {
-        id: 'deep_cache',
-        name: 'Deep Cache',
-        description: 'Offline cache extended from 8h to 16h.',
-        tier: 3, phase: 3,
-        rpCost: 70_000,
-        effect: { offlineCapHours: 16 },
-        requires: ['exploit_amplifier'],
-      },
-      // ── Tier 4 — Phase 4 ────────────────────────────────────────────
-      {
-        id: 'quantum_sync',
-        name: 'Quantum Sync',
-        description: 'Quantum synchronisation: global ×3.',
-        tier: 4, phase: 4,
-        rpCost: 600_000,
-        effect: { globalMultiplier: 3 },
-        requires: ['global_cascade'],
-      },
-      {
-        id: 'dark_cores',
-        name: 'Dark Matter Cores',
-        description: 'Tap dark matter for ×6 production.',
-        tier: 4, phase: 4,
-        rpCost: 1_000_000,
-        effect: { passiveMultiplier: 6 },
-        requires: ['neural_amplifier'],
-      },
-      {
-        id: 'temporal_acc',
-        name: 'Temporal Accelerator',
-        description: 'Bend time — research rate ×4.',
-        tier: 4, phase: 4,
-        rpCost: 3_000_000,
-        effect: { researchMultiplier: 4 },
-        requires: ['rp_accelerator'],
-      },
-      // ── Tier 5 — Phase 5 ────────────────────────────────────────────
-      {
-        id: 'genesis_code',
-        name: 'Genesis Code',
-        description: "Rewrite the universe's source: global ×10.",
-        tier: 5, phase: 5,
-        rpCost: 12_000_000,
-        effect: { globalMultiplier: 10 },
-        requires: ['quantum_sync', 'dark_cores'],
-      },
-      {
-        id: 'recursive_loop',
-        name: 'Recursive Loop',
-        description: 'Self-referential optimisation: all generators ×20.',
-        tier: 5, phase: 5,
-        rpCost: 50_000_000,
-        effect: { passiveMultiplier: 20 },
-        requires: ['temporal_acc'],
-      },
-      {
-        id: 'launch_protocol',
-        name: '🚀 LAUNCH THE PROTOCOL',
-        description: 'Deploy the BitStream Protocol to every node on Earth.',
-        tier: 5, phase: 5,
-        rpCost: 200_000_000,
-        effect: { endgame: true },
-        requires: ['genesis_code', 'recursive_loop'],
-      },
-    ],
-  },
-
   // ─── PHASES ───────────────────────────────────────────────────────────────
+  //
+  // Paliers marqués: each phase entry is a visible milestone.
+  // Thresholds based on totalBitsEarned (never decreases).
   phases: [
     {
       id: 1,
       threshold: 0,
       title: 'Garage Hacker',
-      narrative: 'You start writing scripts in your bedroom. The stream goes live for the first time.',
-      unlocks: ['clicker', 'generators', 'upgrades', 'minigames'],
+      narrative: 'Tu codes dans ta chambre. Le stream démarre pour la première fois.',
+      unlocks: ['clicker', 'generators', 'projects', 'minigames'],
     },
     {
       id: 2,
-      threshold: 100_000,
+      threshold: 5_000,
       title: 'Going Online',
-      narrative: 'Your scripts go viral. A small community forms. Research becomes possible.',
-      unlocks: ['research'],
+      narrative: 'Tes scripts se répandent. Une communauté se forme.',
+      unlocks: [],
     },
     {
       id: 3,
-      threshold: 2_000_000,
+      threshold: 120_000,
       title: 'Corporate Attention',
-      narrative: 'A startup wants to partner. Corporate money starts flowing.',
+      narrative: 'Une startup veut te financer. Le casino ouvre ses portes.',
       unlocks: [],
     },
     {
       id: 4,
-      threshold: 50_000_000,
+      threshold: 3_000_000,
       title: 'Enterprise Scale',
-      narrative: 'BitStream becomes a platform. Thousands of nodes are now live worldwide.',
+      narrative: 'BitStream devient une plateforme. Des milliers de nœuds sont en ligne.',
       unlocks: [],
     },
     {
       id: 5,
-      threshold: 1_000_000_000,
+      threshold: 75_000_000,
       title: 'Quantum Era',
-      narrative: 'Quantum servers come online. The network transcends traditional computing.',
+      narrative: 'Les serveurs quantiques s\'activent. Le réseau transcende le calcul classique.',
       unlocks: [],
     },
   ],
 
   // ─── MINI-GAMES ───────────────────────────────────────────────────────────
   minigames: {
-    intervalRange: [150_000, 360_000] as [number, number], // 2.5–6 min
+    intervalRange: [150_000, 360_000] as [number, number],
     durationMs: 15_000,
     burstDurationSec: 20,
-    burstBpsMultiplier: 4,    // Reduced from 10 — no longer dominates economy
-    lossPenaltyPct: 0.02,     // 2% bits lost on mini-game failure
+    burstBpsMultiplier: 4,
+    lossPenaltyPct: 0.02,
   },
 
   // ─── OFFLINE PRODUCTION ───────────────────────────────────────────────────
   offline: {
-    maxOfflineMs: 8 * 60 * 60 * 1000,
-    efficiency: 0.08,         // Slightly reduced offline efficiency
+    maxOfflineMs: 8 * 60 * 60 * 1000,  // 8 h cap
+    efficiency: 0.08,                   // 8% of normal production while offline
   },
 
   // ─── TWITCH ───────────────────────────────────────────────────────────────
@@ -505,7 +475,7 @@ export function bulkGeneratorCost(
   );
 }
 
-/** Get the milestone multiplier for a given owned count */
+/** Returns the highest milestone multiplier reached for the given owned count. */
 export function getMilestoneMultiplier(
   milestones: readonly { owned: number; multiplier: number }[],
   owned: number,
@@ -517,7 +487,7 @@ export function getMilestoneMultiplier(
   return mult;
 }
 
-/** Format large numbers with K / M / B / T suffixes */
+/** Format large numbers with K / M / B / T suffixes. */
 export function formatNumber(n: number): string {
   if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Qa';
   if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';

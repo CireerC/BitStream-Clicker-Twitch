@@ -97,13 +97,13 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   function maybeUnlockModules(): void {
     const state = store.getState();
 
-    if (!casinoMounted && state.projects.find(p => p.id === 'casino_charter')?.purchased) {
+    if (!casinoMounted && state.projects.find(p => p.id === 'protocole_casino')?.purchased) {
       casinoSlot.style.display = '';
       mountCasino(casinoSlot);
       casinoMounted = true;
     }
 
-    if (!aimtrainerMounted && state.projects.find(p => p.id === 'aim_protocol')?.purchased) {
+    if (!aimtrainerMounted && state.projects.find(p => p.id === 'protocole_precision')?.purchased) {
       aimtrainerSlot.style.display = '';
       mountAimTrainer(aimtrainerSlot);
       aimtrainerMounted = true;

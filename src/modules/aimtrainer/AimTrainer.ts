@@ -17,10 +17,21 @@ function pointsForSize(size: number): number {
   return 1;
 }
 
-// Reward: fixed bits per point + small fraction of bet (not multiplicative)
-// This prevents high-bet AimTrainer from dominating economy
-const BITS_PER_POINT = 8;          // flat bits per point regardless of bet
-const BET_RETURN_ON_WIN = 0.6;     // return 60% of bet if you score any points (partial refund)
+// HIGH RISK / HIGH REWARD payout formula:
+//   returnMult = max(0, (points - SCORE_THRESHOLD) / SCORE_DIVISOR)
+//   totalReturn = bet × returnMult × store.getModuleMultiplier()
+//
+// Breakpoints (without module upgrades, moduleMult = 1):
+//   < 10 pts  : 0× (lose entire bet)
+//     25 pts  : 1.0× (break even)
+//     40 pts  : 2.0× (win +100%)
+//     55 pts  : 3.0× (win +200%)
+//
+// With max module upgrades (moduleMult ≈ 3.8):
+//     25 pts  : 3.8× (win +280%)
+//     40 pts  : 7.6× (win +660%)
+const SCORE_THRESHOLD = 10;
+const SCORE_DIVISOR   = 15;
 
 export function mountAimTrainer(container: HTMLElement): () => void {
   let gameActive = false;
@@ -197,11 +208,12 @@ export function mountAimTrainer(container: HTMLElement): () => void {
     betLiveEl.style.display = 'none';
     hintEl.style.display = 'block';
 
-    // Reward: fixed per-point bonus + partial bet refund if scored
-    const pointBonus = points * BITS_PER_POINT;
-    const betRefund  = hits > 0 ? Math.floor(bet * BET_RETURN_ON_WIN) : 0;
-    const totalReturn = pointBonus + betRefund;
-    const net = totalReturn - bet;
+    // High risk / high reward: score below threshold loses everything.
+    // Module multiplier boosts wins — endgame players can win massively.
+    const moduleMult  = store.getModuleMultiplier();
+    const returnMult  = Math.max(0, (points - SCORE_THRESHOLD) / SCORE_DIVISOR);
+    const totalReturn = Math.floor(bet * returnMult * moduleMult);
+    const net         = totalReturn - bet;
 
     if (totalReturn > 0) {
       store.setState(s => {
@@ -211,13 +223,15 @@ export function mountAimTrainer(container: HTMLElement): () => void {
     }
 
     resultEl.style.display = 'block';
-    if (hits === 0) {
+    if (returnMult <= 0) {
       resultEl.className = 'aim-result aim-result--lose';
-      resultEl.textContent = `🎯 0 cible — Perdu ${formatNumber(bet)} bits`;
+      resultEl.textContent = `🎯 ${points} pts — Score trop bas ! Perdu ${formatNumber(bet)} bits`;
+    } else if (net >= 0) {
+      resultEl.className = 'aim-result aim-result--win';
+      resultEl.textContent = `🎯 ${hits} hits · ${points} pts → +${formatNumber(net)} bits nets`;
     } else {
-      const sign = net >= 0 ? '+' : '';
-      resultEl.className = `aim-result ${net >= 0 ? 'aim-result--win' : 'aim-result--lose'}`;
-      resultEl.textContent = `🎯 ${hits} hits · ${points} pts → ${sign}${formatNumber(net)} bits nets`;
+      resultEl.className = 'aim-result aim-result--lose';
+      resultEl.textContent = `🎯 ${hits} hits · ${points} pts → −${formatNumber(Math.abs(net))} bits`;
     }
 
     startBtn.disabled = false;

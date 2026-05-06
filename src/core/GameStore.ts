@@ -1,5 +1,5 @@
 import { BALANCE, generatorCost, getMilestoneMultiplier } from './balance.js';
-import type { GameState, ProjectState, MultiplierState } from '../store/types.js';
+import type { GameState, MultiplierState } from '../store/types.js';
 
 type Listener = () => void;
 
@@ -10,17 +10,17 @@ function defaultState(): GameState {
     totalClicks: 0,
     clicker: { comboCount: 0, comboMultiplier: 1, lastClickTime: 0 },
     generators: BALANCE.generators.map(g => ({ id: g.id, owned: 0 })),
-    projects: BALANCE.projects.map(p => ({ id: p.id, purchased: false })),
+    projects:   BALANCE.projects.map(p => ({ id: p.id, purchased: false })),
     multipliers: {
-      click: 1, passive: 1, global: 1, twitch: 1,
-      minigame: 1, minigameEndsAt: 0, research: 1,
+      bpsBonus: 0, clickBonus: 0, globalBonus: 0, moduleBonus: 0,
+      maxComboOverride: 0,
+      twitch: 1, minigame: 1, minigameEndsAt: 0,
     } satisfies MultiplierState,
-    research: { points: 0, techPurchased: [] },
     twitch: { isLive: false, streamTitle: '', gameName: '', lastChecked: 0, channelName: '' },
     lastPhase: 1,
     lastSaveTime: Date.now(),
     lastTickTime: Date.now(),
-    language: 'fr',  // default to French
+    language: 'fr',
   };
 }
 
@@ -62,96 +62,40 @@ class GameStore {
     return true;
   }
 
-  // ── Research ──────────────────────────────────────────────────────────────
-
-  /**
-   * Research rate: sqrt(effectiveBPS + 1) / rpsDiv × research multiplier
-   * Grows with BPS but sub-linearly — always meaningful, never trivial.
-   */
-  getResearchPS(): number {
-    const rawBps = this.getRawBPS();
-    return (Math.sqrt(rawBps + 1) / BALANCE.research.rpsDiv) * this.state.multipliers.research;
-  }
-
-  addResearchPoints(rp: number): void {
-    this.state.research.points += rp;
-    // No notify here — called every frame, notification handled by GameLoop batching
-  }
-
-  isTechPurchased(id: string): boolean {
-    return this.state.research.techPurchased.includes(id);
-  }
-
-  isTechAvailable(id: string): boolean {
-    const tech = BALANCE.research.technologies.find(t => t.id === id);
-    if (!tech || this.isTechPurchased(id)) return false;
-    if (this.getCurrentPhase() < tech.phase) return false;
-    for (const req of tech.requires) {
-      if (!this.isTechPurchased(req)) return false;
-    }
-    return true;
-  }
-
-  purchaseTech(techId: string): boolean {
-    const tech = BALANCE.research.technologies.find(t => t.id === techId);
-    if (!tech || !this.isTechAvailable(techId)) return false;
-    if (this.state.research.points < tech.rpCost) return false;
-
-    this.setState(s => {
-      s.research.points -= tech.rpCost;
-      s.research.techPurchased.push(techId);
-      this.recomputeMultipliers(s);
-    });
-    return true;
-  }
-
-  // ── Computed tech effects ──────────────────────────────────────────────────
-
-  /** Max combo multiplier (raised by combo_protocol tech) */
-  getMaxCombo(): number {
-    const tech = BALANCE.research.technologies.find(t => t.id === 'combo_protocol');
-    if (tech && this.isTechPurchased('combo_protocol')) {
-      return (tech.effect as any).maxCombo ?? BALANCE.clicker.maxComboMultiplier;
-    }
-    return BALANCE.clicker.maxComboMultiplier;
-  }
-
-  /** Offline cap in ms (extended by deep_cache tech) */
-  getOfflineCapMs(): number {
-    const tech = BALANCE.research.technologies.find(t => t.id === 'deep_cache');
-    if (tech && this.isTechPurchased('deep_cache')) {
-      return ((tech.effect as any).offlineCapHours ?? 8) * 3_600_000;
-    }
-    return BALANCE.offline.maxOfflineMs;
-  }
-
-  /** Mini-game reward multiplier (boosted by exploit_amplifier tech) */
-  getMinigameRewardMult(): number {
-    const tech = BALANCE.research.technologies.find(t => t.id === 'exploit_amplifier');
-    if (tech && this.isTechPurchased('exploit_amplifier')) {
-      return (tech.effect as any).minigameRewardMult ?? 1;
-    }
-    return 1;
-  }
-
   // ── Multipliers ───────────────────────────────────────────────────────────
 
   isMinigameActive(): boolean {
     return Date.now() < this.state.multipliers.minigameEndsAt;
   }
 
+  /**
+   * Effective multiplier applied to passive BPS.
+   * Formula: (1 + bpsBonus + globalBonus) × twitch × (minigame if burst active)
+   */
   getPassiveMultiplier(): number {
     const m = this.state.multipliers;
-    return m.passive * m.global * m.twitch * (this.isMinigameActive() ? m.minigame : 1);
+    const base = 1 + m.bpsBonus + m.globalBonus;
+    return base * m.twitch * (this.isMinigameActive() ? m.minigame : 1);
   }
 
+  /**
+   * Effective multiplier applied to BPC.
+   * Formula: (1 + clickBonus + globalBonus) × combo × twitch × (minigame if burst)
+   */
   getClickMultiplier(): number {
     const m = this.state.multipliers;
-    return (
-      m.click * m.global * m.twitch *
-      (this.isMinigameActive() ? m.minigame : 1) *
-      this.state.clicker.comboMultiplier
-    );
+    const base = 1 + m.clickBonus + m.globalBonus;
+    return base * this.state.clicker.comboMultiplier * m.twitch * (this.isMinigameActive() ? m.minigame : 1);
+  }
+
+  /**
+   * Multiplier applied to casino / aim trainer payouts.
+   * Formula: 1 + moduleBonus + globalBonus
+   * (global bonus applies to everything, including modules)
+   */
+  getModuleMultiplier(): number {
+    const m = this.state.multipliers;
+    return 1 + m.moduleBonus + m.globalBonus;
   }
 
   getRawBPS(): number {
@@ -172,6 +116,17 @@ class GameStore {
 
   getEffectiveBPC(): number {
     return BALANCE.clicker.baseBitsPerClick * this.getClickMultiplier();
+  }
+
+  /** Max combo multiplier — overridden by combo_amplifie project. */
+  getMaxCombo(): number {
+    const override = this.state.multipliers.maxComboOverride;
+    return override > 0 ? override : BALANCE.clicker.maxComboMultiplier;
+  }
+
+  /** Offline cap in ms. */
+  getOfflineCapMs(): number {
+    return BALANCE.offline.maxOfflineMs;
   }
 
   // ── Phases ────────────────────────────────────────────────────────────────
@@ -213,7 +168,6 @@ class GameStore {
     if (this.state.bits < def.cost) return false;
     if (this.state.totalBitsEarned < def.unlockAt) return false;
     if (this.getCurrentPhase() < def.phase) return false;
-    // Check prerequisites
     for (const req of def.requires) {
       if (!this.state.projects.find(p => p.id === req)?.purchased) return false;
     }
@@ -221,39 +175,38 @@ class GameStore {
     this.setState(s => {
       s.bits -= def.cost;
       s.projects.find(p => p.id === projectId)!.purchased = true;
+      this.recomputeMultipliers(s);
     });
     return true;
   }
 
   /**
-   * Recomputes click/passive/global/research multipliers from scratch.
-   * NOTE: Projects unlock gameplay features but don't provide multipliers.
-   * Only research technologies contribute to multiplier effects.
+   * Recomputes all project-derived bonuses from scratch (additive system).
+   * Each project's effect fields are accumulated into the multiplier state.
+   * Only projects are sources — no hidden research system.
    */
   recomputeMultipliers(s: GameState): void {
-    let click = 1, passive = 1, global = 1, research = 1;
+    let bpsBonus = 0;
+    let clickBonus = 0;
+    let globalBonus = 0;
+    let moduleBonus = 0;
+    let maxComboOverride = 0;
 
-    for (const tech of BALANCE.research.technologies) {
-      if (!s.research.techPurchased.includes(tech.id)) continue;
-      const e = tech.effect as Record<string, number>;
-      if (e.clickMultiplier)    click    *= e.clickMultiplier;
-      if (e.passiveMultiplier)  passive  *= e.passiveMultiplier;
-      if (e.globalMultiplier)   global   *= e.globalMultiplier;
-      if (e.researchMultiplier) research *= e.researchMultiplier;
-    }
-
-    // Project upgrades also contribute multipliers
     for (const proj of BALANCE.projects) {
       if (!s.projects.find(p => p.id === proj.id)?.purchased) continue;
-      const e = proj.effect as Record<string, number | string | boolean>;
-      if (typeof e.passiveMultiplier === 'number') passive *= e.passiveMultiplier;
-      if (typeof e.globalMultiplier  === 'number') global  *= e.globalMultiplier;
+      const e = proj.effect as Record<string, unknown>;
+      if (typeof e.bpsBonus    === 'number') bpsBonus    += e.bpsBonus;
+      if (typeof e.clickBonus  === 'number') clickBonus  += e.clickBonus;
+      if (typeof e.globalBonus === 'number') globalBonus += e.globalBonus;
+      if (typeof e.moduleBonus === 'number') moduleBonus += e.moduleBonus;
+      if (typeof e.maxCombo    === 'number') maxComboOverride = Math.max(maxComboOverride, e.maxCombo);
     }
 
-    s.multipliers.click    = click;
-    s.multipliers.passive  = passive;
-    s.multipliers.global   = global;
-    s.multipliers.research = research;
+    s.multipliers.bpsBonus          = bpsBonus;
+    s.multipliers.clickBonus        = clickBonus;
+    s.multipliers.globalBonus       = globalBonus;
+    s.multipliers.moduleBonus       = moduleBonus;
+    s.multipliers.maxComboOverride  = maxComboOverride;
   }
 
   // ── Twitch ────────────────────────────────────────────────────────────────
@@ -268,12 +221,10 @@ class GameStore {
     });
   }
 
-  // ── Language ───────────────────────────────────────────────────────────────
+  // ── Language ──────────────────────────────────────────────────────────────
 
   setLanguage(lang: 'en' | 'fr'): void {
-    this.setState(s => {
-      s.language = lang;
-    });
+    this.setState(s => { s.language = lang; });
   }
 
   getLanguage(): 'en' | 'fr' {
@@ -282,16 +233,25 @@ class GameStore {
 
   // ── Save / Load ───────────────────────────────────────────────────────────
 
-  loadState(saved: Partial<GameState>): void {
+  loadState(saved: Partial<GameState> & Record<string, unknown>): void {
     const fresh = defaultState();
     this.state = {
-      ...fresh,
-      ...saved,
-      generators: fresh.generators.map(def => saved.generators?.find(g => g.id === def.id) ?? def),
-      projects:   fresh.projects.map(def => saved.projects?.find(p => p.id === def.id) ?? def),
-      multipliers: { ...fresh.multipliers, ...(saved.multipliers ?? {}) },
-      research:   { ...fresh.research, ...(saved.research ?? {}) },
-      twitch:     { ...fresh.twitch, ...(saved.twitch ?? {}) },
+      bits:             typeof saved.bits === 'number'             ? saved.bits             : fresh.bits,
+      totalBitsEarned:  typeof saved.totalBitsEarned === 'number'  ? saved.totalBitsEarned  : fresh.totalBitsEarned,
+      totalClicks:      typeof saved.totalClicks === 'number'      ? saved.totalClicks      : fresh.totalClicks,
+      clicker:          { ...fresh.clicker,      ...(saved.clicker      ?? {}) } as GameState['clicker'],
+      generators:       fresh.generators.map(def =>
+        (saved.generators as GameState['generators'] | undefined)?.find(g => g.id === def.id) ?? def
+      ),
+      projects:         fresh.projects.map(def =>
+        (saved.projects as GameState['projects'] | undefined)?.find(p => p.id === def.id) ?? def
+      ),
+      multipliers:      { ...fresh.multipliers, ...(saved.multipliers ?? {}) } as MultiplierState,
+      twitch:           { ...fresh.twitch,       ...(saved.twitch       ?? {}) } as GameState['twitch'],
+      lastPhase:        typeof saved.lastPhase === 'number'        ? saved.lastPhase        : fresh.lastPhase,
+      lastSaveTime:     typeof saved.lastSaveTime === 'number'     ? saved.lastSaveTime     : fresh.lastSaveTime,
+      lastTickTime:     typeof saved.lastTickTime === 'number'     ? saved.lastTickTime     : fresh.lastTickTime,
+      language:         (saved.language === 'en' || saved.language === 'fr') ? saved.language : fresh.language,
     };
     this.recomputeMultipliers(this.state);
     if (this.state.twitch.isLive) this.state.multipliers.twitch = BALANCE.twitch.liveMultiplier;

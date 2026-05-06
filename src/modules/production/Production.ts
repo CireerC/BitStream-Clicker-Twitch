@@ -8,7 +8,7 @@ function getSellPrice(genId: string): number {
 }
 
 function isTradeUnlocked(): boolean {
-  return !!store.getState().projects.find(p => p.id === 'market_access')?.purchased;
+  return !!store.getState().projects.find(p => p.id === 'marche_libre')?.purchased;
 }
 
 export function mountProduction(container: HTMLElement): () => void {
@@ -30,8 +30,8 @@ export function mountProduction(container: HTMLElement): () => void {
     const unlockedGens = BALANCE.generators.map(gen =>
       s.totalBitsEarned >= gen.unlockAt ? '1' : '0'
     ).join('');
-    const tradeActive = s.projects.find(p => p.id === 'market_access')?.purchased ? '1' : '0';
-    return ownedCounts + '|' + unlockedGens + '|' + Math.floor(s.multipliers.passive) + '|' + tradeActive;
+    const tradeActive = s.projects.find(p => p.id === 'marche_libre')?.purchased ? '1' : '0';
+    return ownedCounts + '|' + unlockedGens + '|' + Math.floor(s.multipliers.bpsBonus * 100) + '|' + tradeActive;
   }
 
   /** Full DOM rebuild — only called when a purchase or unlock happens */
