@@ -1904,3 +1904,124 @@ html, body {
   color: var(--accent2);
   opacity: 0.8;
 }
+
+/* ── Achievement Toasts ─────────────────────────────────────────────────── */
+.achievement-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #111;
+  border: 1px solid #f0c040;
+  border-radius: 6px;
+  padding: 12px 16px;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  z-index: 9999;
+  transform: translateX(120%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.achievement-toast--show { transform: translateX(0); }
+.achievement-toast__icon { font-size: 1.6rem; flex-shrink: 0; }
+.achievement-toast__body { display: flex; flex-direction: column; gap: 2px; }
+.achievement-toast__title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #f0c040;
+  letter-spacing: 0.03em;
+}
+.achievement-toast__desc  { font-size: 0.75rem; color: #aaa; }
+.achievement-toast__reward { font-size: 0.80rem; color: #5f5; font-weight: 600; }
+
+/* ── Casino Streak ──────────────────────────────────────────────────────── */
+.casino-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.casino-streak {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ff9900;
+  background: rgba(255,153,0,0.12);
+  border: 1px solid rgba(255,153,0,0.4);
+  border-radius: 4px;
+  padding: 3px 8px;
+  animation: streak-pulse 1.5s ease-in-out infinite;
+}
+@keyframes streak-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+
+/* ── Generator next-hint ────────────────────────────────────────────────── */
+.gen-next-hint {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px dashed #333;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  color: #777;
+}
+.gen-next-hint strong { color: #aaa; }
+
+/* ── Flappy Bird ────────────────────────────────────────────────────────── */
+.flappy-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.flappy-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  cursor: pointer;
+}
+.flappy-canvas {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  image-rendering: pixelated;
+}
+.flappy-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.72);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.flappy-overlay__msg {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f0c040;
+  text-align: center;
+}
+.flappy-overlay__sub {
+  font-size: 0.74rem;
+  color: #888;
+  text-align: center;
+}
+.flappy-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: #aaa;
+}
+.flappy-cooldown {
+  font-size: 0.74rem;
+  color: #666;
+}

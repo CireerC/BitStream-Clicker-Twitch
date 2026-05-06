@@ -7,6 +7,8 @@ import { mountCasino } from '../modules/casino/CasinoModule.js';
 import { mountAimTrainer } from '../modules/aimtrainer/AimTrainer.js';
 import { mountMissions } from '../modules/missions/MissionsModule.js';
 import { mountLeaderboard } from '../modules/leaderboard/Leaderboard.js';
+import { mountFlappy } from '../modules/flappy/FlappyBird.js';
+import type { AchievementDef } from '../core/balance.js';
 import { startMiniGameManager } from '../modules/minigames/MiniGameManager.js';
 import { startPhaseManager } from '../modules/phases/PhaseManager.js';
 import { startTwitchPoller, mountTwitchBadge } from '../integrations/twitch/TwitchAPI.js';
@@ -60,6 +62,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
         <section id="prod-slot"></section>
         <section id="casino-slot" style="display:none"></section>
         <section id="aimtrainer-slot" style="display:none"></section>
+        <section id="flappy-slot" style="display:none"></section>
       </section>
 
       <!-- Colonne droite : Projets + Missions + Leaderboard -->
@@ -90,9 +93,11 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   // ── Dynamic module reveal (when projects unlock them) ──────────────────────
   const casinoSlot      = root.querySelector<HTMLElement>('#casino-slot')!;
   const aimtrainerSlot  = root.querySelector<HTMLElement>('#aimtrainer-slot')!;
+  const flappySlot      = root.querySelector<HTMLElement>('#flappy-slot')!;
 
   let casinoMounted     = false;
   let aimtrainerMounted = false;
+  let flappyMounted     = false;
 
   function maybeUnlockModules(): void {
     const state = store.getState();
@@ -108,10 +113,38 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       mountAimTrainer(aimtrainerSlot);
       aimtrainerMounted = true;
     }
+
+    if (!flappyMounted && state.projects.find(p => p.id === 'protocole_arcade')?.purchased) {
+      flappySlot.style.display = '';
+      mountFlappy(flappySlot);
+      flappyMounted = true;
+    }
   }
 
   store.subscribe(maybeUnlockModules);
   maybeUnlockModules(); // check if any modules should be shown on load
+
+  // ── Achievement toasts ────────────────────────────────────────────────────
+  function showAchievementToast(ach: AchievementDef): void {
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = `
+      <div class="achievement-toast__icon">🏆</div>
+      <div class="achievement-toast__body">
+        <div class="achievement-toast__title">${ach.name}</div>
+        <div class="achievement-toast__desc">${ach.description}</div>
+        <div class="achievement-toast__reward">+${formatNumber(ach.reward)} bits</div>
+      </div>
+    `;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('achievement-toast--show'));
+    setTimeout(() => toast.classList.remove('achievement-toast--show'), 3200);
+    setTimeout(() => toast.remove(), 3700);
+  }
+
+  document.addEventListener('bitstream:achievement', (e: Event) => {
+    showAchievementToast((e as CustomEvent<AchievementDef>).detail);
+  });
 
   // ── Center stats ──────────────────────────────────────────────────────────
   const statTotal  = root.querySelector<HTMLElement>('#stat-total')!;

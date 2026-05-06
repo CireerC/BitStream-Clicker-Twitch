@@ -278,6 +278,17 @@ export const BALANCE = {
       effect: { bpsBonus: 0.40 },
       requires: [] as string[],
     },
+    {
+      id: 'protocole_arcade',
+      name: 'Protocole Arcade',
+      description: 'Déverrouille le mini-jeu Flappy Bit. Score = bits gagnés × moduleMultiplier.',
+      category: 'module' as const,
+      cost: 65_000,
+      unlockAt: 45_000,
+      phase: 2,
+      effect: { unlocks: 'flappy' },
+      requires: [] as string[],
+    },
     // ── Phase 3 ──────────────────────────────────────────────────────────
     {
       id: 'interface_clicker',
@@ -508,3 +519,40 @@ export function formatDuration(seconds: number): string {
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
+
+// ── Achievements ──────────────────────────────────────────────────────────────
+
+export type AchievementCondition =
+  | { type: 'totalClicks';       value: number }
+  | { type: 'totalBitsEarned';   value: number }
+  | { type: 'generatorsOwned';   value: number }
+  | { type: 'projectsPurchased'; value: number }
+  | { type: 'phase';             value: number };
+
+export interface AchievementDef {
+  id: string;
+  name: string;
+  description: string;
+  reward: number;
+  condition: AchievementCondition;
+}
+
+export const ACHIEVEMENTS: AchievementDef[] = [
+  { id: 'first_click',    name: 'Premier Clic',          description: 'Le voyage commence.',             reward: 5,           condition: { type: 'totalClicks',       value: 1          } },
+  { id: 'click_100',      name: 'Cliqueur',               description: '100 clics réalisés.',            reward: 100,         condition: { type: 'totalClicks',       value: 100        } },
+  { id: 'click_1000',     name: 'Hypercliqueur',          description: '1 000 clics réalisés.',          reward: 1_000,       condition: { type: 'totalClicks',       value: 1_000      } },
+  { id: 'click_10000',    name: 'Machine à Cliquer',      description: '10 000 clics réalisés.',         reward: 10_000,      condition: { type: 'totalClicks',       value: 10_000     } },
+  { id: 'earned_1k',      name: '1K Bits',                description: '1 000 bits gagnés au total.',    reward: 200,         condition: { type: 'totalBitsEarned',   value: 1_000      } },
+  { id: 'earned_100k',    name: '100K Club',              description: '100 000 bits gagnés.',           reward: 10_000,      condition: { type: 'totalBitsEarned',   value: 100_000    } },
+  { id: 'earned_10m',     name: 'Dizaine de Millions',    description: '10 millions de bits gagnés.',    reward: 500_000,     condition: { type: 'totalBitsEarned',   value: 10_000_000 } },
+  { id: 'earned_1b',      name: 'Milliardaire',           description: '1 milliard de bits gagnés.',     reward: 20_000_000,  condition: { type: 'totalBitsEarned',   value: 1_000_000_000 } },
+  { id: 'first_gen',      name: 'Premier Automate',       description: 'Achète ton premier générateur.', reward: 30,          condition: { type: 'generatorsOwned',   value: 1          } },
+  { id: 'gen_10',         name: 'Réseau Naissant',        description: '10 générateurs au total.',       reward: 2_000,       condition: { type: 'generatorsOwned',   value: 10         } },
+  { id: 'gen_50',         name: 'Méga Ferme',             description: '50 générateurs au total.',       reward: 100_000,     condition: { type: 'generatorsOwned',   value: 50         } },
+  { id: 'first_project',  name: 'R&D Initiée',            description: 'Premier projet acheté.',         reward: 200,         condition: { type: 'projectsPurchased', value: 1          } },
+  { id: 'projects_5',     name: 'Chercheur',              description: '5 projets complétés.',           reward: 20_000,      condition: { type: 'projectsPurchased', value: 5          } },
+  { id: 'phase_2',        name: 'Going Online',           description: 'Phase 2 atteinte.',              reward: 2_000,       condition: { type: 'phase',             value: 2          } },
+  { id: 'phase_3',        name: 'Corporate Attention',    description: 'Phase 3 atteinte.',              reward: 30_000,      condition: { type: 'phase',             value: 3          } },
+  { id: 'phase_4',        name: 'Enterprise Scale',       description: 'Phase 4 atteinte.',              reward: 500_000,     condition: { type: 'phase',             value: 4          } },
+  { id: 'phase_5',        name: 'Quantum Era',            description: 'Phase 5 atteinte.',              reward: 5_000_000,   condition: { type: 'phase',             value: 5          } },
+];

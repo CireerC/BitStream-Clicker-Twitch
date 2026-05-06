@@ -54,9 +54,10 @@ type EffectMap = Record<string, unknown>;
 
 function describeEffect(effect: EffectMap): string {
   const parts: string[] = [];
-  if (effect.unlocks === 'trade')       parts.push('Débloque : Vente de générateurs');
-  else if (effect.unlocks === 'casino') parts.push('Débloque : Casino');
-  else if (effect.unlocks === 'aimtrainer') parts.push('Débloque : Aim Trainer');
+  if (effect.unlocks === 'trade')            parts.push('Débloque : Vente de générateurs');
+  else if (effect.unlocks === 'casino')      parts.push('Débloque : Casino');
+  else if (effect.unlocks === 'aimtrainer')  parts.push('Débloque : Aim Trainer');
+  else if (effect.unlocks === 'flappy')      parts.push('Débloque : Flappy Bit');
   if (typeof effect.bpsBonus    === 'number') parts.push(`+${Math.round(effect.bpsBonus * 100)}% production passive`);
   if (typeof effect.clickBonus  === 'number') parts.push(`+${Math.round(effect.clickBonus * 100)}% bits/clic`);
   if (typeof effect.globalBonus === 'number') parts.push(`+${Math.round(effect.globalBonus * 100)}% tous les gains`);

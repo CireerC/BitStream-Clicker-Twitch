@@ -83,7 +83,21 @@ export function mountProduction(container: HTMLElement): () => void {
     }
 
     if (!anyVisible) {
-      list.innerHTML = '<p class="gen-hint">Earn more bits to unlock generators…</p>';
+      list.innerHTML = '<p class="gen-hint">Clique pour générer tes premiers bits !</p>';
+    }
+
+    // Next locked generator hint
+    const nextLocked = BALANCE.generators.find(
+      gen => state.totalBitsEarned < gen.unlockAt
+    );
+    const existingHint = list.querySelector('.gen-next-hint');
+    if (existingHint) existingHint.remove();
+    if (nextLocked) {
+      const needed = nextLocked.unlockAt - state.totalBitsEarned;
+      const hint = document.createElement('div');
+      hint.className = 'gen-next-hint';
+      hint.innerHTML = `${nextLocked.emoji} <strong>${nextLocked.name}</strong> — encore ${formatNumber(needed)} bits gagnés pour débloquer`;
+      list.appendChild(hint);
     }
   }
 
@@ -112,6 +126,18 @@ export function mountProduction(container: HTMLElement): () => void {
         const bps = gs.owned * gen.baseBps * store.getPassiveMultiplier();
         card.querySelector<HTMLElement>('.gen-card__bps')!.textContent = formatNumber(bps) + ' b/s';
       }
+    }
+
+    // Update next-generator hint
+    const nextLocked = BALANCE.generators.find(
+      gen => state.totalBitsEarned < gen.unlockAt
+    );
+    const hint = list.querySelector<HTMLElement>('.gen-next-hint');
+    if (hint && nextLocked) {
+      const needed = nextLocked.unlockAt - state.totalBitsEarned;
+      hint.innerHTML = `${nextLocked.emoji} <strong>${nextLocked.name}</strong> — encore ${formatNumber(needed)} bits gagnés pour débloquer`;
+    } else if (hint && !nextLocked) {
+      hint.remove();
     }
   }
 

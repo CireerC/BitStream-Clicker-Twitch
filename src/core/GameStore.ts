@@ -1,4 +1,4 @@
-import { BALANCE, generatorCost, getMilestoneMultiplier } from './balance.js';
+import { BALANCE, ACHIEVEMENTS, generatorCost, getMilestoneMultiplier } from './balance.js';
 import type { GameState, MultiplierState } from '../store/types.js';
 
 type Listener = () => void;
@@ -17,6 +17,7 @@ function defaultState(): GameState {
       twitch: 1, minigame: 1, minigameEndsAt: 0,
     } satisfies MultiplierState,
     twitch: { isLive: false, streamTitle: '', gameName: '', lastChecked: 0, channelName: '' },
+    achievements: [],
     lastPhase: 1,
     lastSaveTime: Date.now(),
     lastTickTime: Date.now(),
@@ -27,6 +28,7 @@ function defaultState(): GameState {
 class GameStore {
   private state: GameState = defaultState();
   private listeners = new Set<Listener>();
+  private checkingAchievements = false;
 
   getState(): Readonly<GameState> { return this.state; }
 
@@ -35,7 +37,45 @@ class GameStore {
     return () => this.listeners.delete(listener);
   }
 
-  notify(): void { this.listeners.forEach(l => l()); }
+  notify(): void {
+    this.listeners.forEach(l => l());
+    this.checkAchievements();
+  }
+
+  private checkAchievements(): void {
+    if (this.checkingAchievements) return;
+    if (this.state.achievements.length >= ACHIEVEMENTS.length) return;
+
+    this.checkingAchievements = true;
+    const s = this.state;
+    const totalGenerators = s.generators.reduce((sum, g) => sum + g.owned, 0);
+    const projectsPurchased = s.projects.filter(p => p.purchased).length;
+    const phase = this.getCurrentPhase();
+    let anyNew = false;
+
+    for (const ach of ACHIEVEMENTS) {
+      if (s.achievements.includes(ach.id)) continue;
+      const c = ach.condition;
+      let met = false;
+      switch (c.type) {
+        case 'totalClicks':       met = s.totalClicks      >= c.value; break;
+        case 'totalBitsEarned':   met = s.totalBitsEarned  >= c.value; break;
+        case 'generatorsOwned':   met = totalGenerators    >= c.value; break;
+        case 'projectsPurchased': met = projectsPurchased  >= c.value; break;
+        case 'phase':             met = phase              >= c.value; break;
+      }
+      if (met) {
+        s.achievements.push(ach.id);
+        s.bits             += ach.reward;
+        s.totalBitsEarned  += ach.reward;
+        document.dispatchEvent(new CustomEvent('bitstream:achievement', { detail: ach }));
+        anyNew = true;
+      }
+    }
+
+    this.checkingAchievements = false;
+    if (anyNew) this.listeners.forEach(l => l());
+  }
 
   setState(updater: (s: GameState) => void): void {
     updater(this.state);
@@ -248,6 +288,7 @@ class GameStore {
       ),
       multipliers:      { ...fresh.multipliers, ...(saved.multipliers ?? {}) } as MultiplierState,
       twitch:           { ...fresh.twitch,       ...(saved.twitch       ?? {}) } as GameState['twitch'],
+      achievements:     Array.isArray(saved.achievements) ? (saved.achievements as string[]) : fresh.achievements,
       lastPhase:        typeof saved.lastPhase === 'number'        ? saved.lastPhase        : fresh.lastPhase,
       lastSaveTime:     typeof saved.lastSaveTime === 'number'     ? saved.lastSaveTime     : fresh.lastSaveTime,
       lastTickTime:     typeof saved.lastTickTime === 'number'     ? saved.lastTickTime     : fresh.lastTickTime,

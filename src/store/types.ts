@@ -45,6 +45,7 @@ export interface GameState {
   projects: ProjectState[];
   multipliers: MultiplierState;
   twitch: TwitchState;
+  achievements: string[];
   lastPhase: number;
   lastSaveTime: number;
   lastTickTime: number;

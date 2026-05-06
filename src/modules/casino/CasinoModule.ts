@@ -127,6 +127,7 @@ export function mountCasino(container: HTMLElement): () => void {
           <span class="casino-wallet__label">Solde :</span>
           <span class="casino-wallet__value mono" id="casino-balance">0</span>
         </div>
+        <div class="casino-streak" id="casino-streak" style="display:none"></div>
       </div>
       <div class="casino-tabs">
         <button class="casino-tab casino-tab--active" data-game="blackjack">🃏 Blackjack</button>
@@ -146,6 +147,53 @@ export function mountCasino(container: HTMLElement): () => void {
   let currentGame: GameType = 'blackjack';
   let gameInProgress = false;
   const history: Array<{ game: string; won: boolean; amount: number }> = [];
+
+  // ── Streak system ──────────────────────────────────────────────────────────
+  let winStreak = 0;
+  let streakBonusEndsAt = 0;
+  const STREAK_THRESHOLD  = 3;    // wins needed to activate bonus
+  const STREAK_BONUS      = 0.10; // +10% on wins
+  const STREAK_DURATION   = 30_000; // 30 s
+
+  function streakMultiplier(): number {
+    return Date.now() < streakBonusEndsAt ? 1 + STREAK_BONUS : 1;
+  }
+
+  function recordResult(won: boolean): void {
+    if (won) {
+      winStreak++;
+      if (winStreak >= STREAK_THRESHOLD) streakBonusEndsAt = Date.now() + STREAK_DURATION;
+    } else {
+      winStreak = 0;
+    }
+    updateStreakDisplay();
+  }
+
+  const streakEl = container.querySelector<HTMLElement>('#casino-streak')!;
+
+  function updateStreakDisplay(): void {
+    if (!streakEl) return;
+    if (winStreak >= STREAK_THRESHOLD && Date.now() < streakBonusEndsAt) {
+      const rem = Math.ceil((streakBonusEndsAt - Date.now()) / 1000);
+      streakEl.textContent = `🔥 Streak ×${winStreak} · +10% · ${rem}s`;
+      streakEl.style.display = '';
+    } else if (winStreak >= 2) {
+      streakEl.textContent = `🔥 Streak ×${winStreak}`;
+      streakEl.style.display = '';
+    } else {
+      streakEl.style.display = 'none';
+    }
+  }
+
+  // Refresh streak display every second while active
+  const streakInterval = window.setInterval(() => {
+    if (Date.now() >= streakBonusEndsAt && winStreak >= STREAK_THRESHOLD) {
+      winStreak = 0;
+      updateStreakDisplay();
+    } else if (streakBonusEndsAt > 0) {
+      updateStreakDisplay();
+    }
+  }, 1000);
 
   function showError(msg: string): void {
     const ex = contentEl.querySelector('.casino-error');
@@ -197,6 +245,7 @@ export function mountCasino(container: HTMLElement): () => void {
 
   function addHistory(game: string, won: boolean, amount: number): void {
     history.unshift({ game, won, amount });
+    recordResult(won);
     updateHistory();
   }
 
@@ -471,7 +520,7 @@ export function mountCasino(container: HTMLElement): () => void {
         // Base profit: bet×1.5 for blackjack natural, bet×1 for normal win.
         // Module multiplier applies only to the profit (bet is always refunded).
         const baseProfit = r.bonus ? Math.floor(bet * 1.5) : bet;
-        const profit = Math.floor(baseProfit * moduleMult);
+        const profit = Math.floor(baseProfit * moduleMult * streakMultiplier());
         store.addBits(bet + profit);
         totalNet += profit;
         addHistory('🃏', true, profit);
@@ -545,7 +594,7 @@ export function mountCasino(container: HTMLElement): () => void {
       const won = drawnSuit === selectedSuit;
       // ×4 total return (×3 net profit) × module multiplier on profit
       const moduleMult = store.getModuleMultiplier();
-      const profit = won ? Math.floor(bet * 3 * moduleMult) : 0;
+      const profit = won ? Math.floor(bet * 3 * moduleMult * streakMultiplier()) : 0;
       const net = won ? profit : -bet;
       const netSign = net >= 0 ? '+' : '';
 
@@ -647,7 +696,7 @@ export function mountCasino(container: HTMLElement): () => void {
           const moduleMult = store.getModuleMultiplier();
           let gross: number;
           if (sector.mult > 1) {
-            const profit = Math.floor(bet * (sector.mult - 1) * moduleMult);
+            const profit = Math.floor(bet * (sector.mult - 1) * moduleMult * streakMultiplier());
             gross = bet + profit;
           } else {
             gross = Math.floor(bet * sector.mult); // partial refund, no boost
@@ -743,6 +792,7 @@ export function mountCasino(container: HTMLElement): () => void {
 
   return () => {
     cancelAnimationFrame(wheelRaf);
+    clearInterval(streakInterval);
     unsubStore();
   };
 }
