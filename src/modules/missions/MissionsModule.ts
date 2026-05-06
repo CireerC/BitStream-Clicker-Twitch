@@ -67,9 +67,13 @@ function loadProgress(clicksNow: number, bitsNow: number): MissionProgress {
     if (raw) {
       const p = JSON.parse(raw) as MissionProgress;
       if (p.lastSeed === getDailySeed()) {
-        // Reprendre la session du jour : ancrer les compteurs sur la valeur actuelle du store
-        p.clicksAtStart = clicksNow;
-        p.bitsAtStart = bitsNow;
+        // Accumulate any progress made since last save before re-anchoring
+        const missedClicks = Math.max(0, clicksNow - p.clicksAtStart);
+        const missedBits   = Math.max(0, bitsNow   - p.bitsAtStart);
+        p.clicksDone      += missedClicks;
+        p.bitsEarnedDone  += missedBits;
+        p.clicksAtStart    = clicksNow;
+        p.bitsAtStart      = bitsNow;
         return p;
       }
     }
@@ -89,9 +93,10 @@ function saveProgress(p: MissionProgress): void {
 }
 
 export function mountMissions(container: HTMLElement): () => void {
-  const missions = pickDailyMissions();
+  let missions = pickDailyMissions();
   const initState = store.getState();
   let progress = loadProgress(initState.totalClicks, initState.totalBitsEarned);
+  let currentSeed = getDailySeed();
 
   function getProgress(m: Mission): number {
     const state = store.getState();
@@ -180,10 +185,27 @@ export function mountMissions(container: HTMLElement): () => void {
     </div>
   `;
 
-  // Update reset countdown every minute
+  // Update reset countdown every minute + detect day change for live reload
   const resetInterval = window.setInterval(() => {
     const el = container.querySelector<HTMLElement>('#missions-reset');
     if (el) el.textContent = getResetLabel();
+
+    const newSeed = getDailySeed();
+    if (newSeed !== currentSeed) {
+      currentSeed = newSeed;
+      missions = pickDailyMissions();
+      const st = store.getState();
+      progress = {
+        clicksAtStart: st.totalClicks,
+        bitsAtStart: st.totalBitsEarned,
+        clicksDone: 0,
+        bitsEarnedDone: 0,
+        claimed: [],
+        lastSeed: newSeed,
+      };
+      saveProgress(progress);
+      renderProgress();
+    }
   }, 60_000);
 
   renderProgress();

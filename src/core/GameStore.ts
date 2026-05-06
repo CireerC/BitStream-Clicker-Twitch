@@ -1,4 +1,4 @@
-import { BALANCE, generatorCost } from './balance.js';
+import { BALANCE, generatorCost, getMilestoneMultiplier } from './balance.js';
 import type { GameState, ProjectState, MultiplierState } from '../store/types.js';
 
 type Listener = () => void;
@@ -158,7 +158,10 @@ class GameStore {
     let raw = 0;
     for (const gen of BALANCE.generators) {
       const s = this.state.generators.find(g => g.id === gen.id);
-      if (s) raw += s.owned * gen.baseBps;
+      if (s && s.owned > 0) {
+        const milestoneMult = getMilestoneMultiplier(gen.milestones, s.owned);
+        raw += s.owned * gen.baseBps * milestoneMult;
+      }
     }
     return raw;
   }
@@ -167,8 +170,14 @@ class GameStore {
     return this.getRawBPS() * this.getPassiveMultiplier();
   }
 
+  /** BPC reduced in later phases so clicker stays relevant only in early game */
+  getClickerPhaseScale(): number {
+    const phase = this.getCurrentPhase();
+    return BALANCE.clicker.phaseScale[phase - 1] ?? 0.02;
+  }
+
   getEffectiveBPC(): number {
-    return BALANCE.clicker.baseBitsPerClick * this.getClickMultiplier();
+    return BALANCE.clicker.baseBitsPerClick * this.getClickMultiplier() * this.getClickerPhaseScale();
   }
 
   // ── Phases ────────────────────────────────────────────────────────────────
@@ -230,7 +239,6 @@ class GameStore {
   recomputeMultipliers(s: GameState): void {
     let click = 1, passive = 1, global = 1, research = 1;
 
-    // Research technologies (only source of multipliers now)
     for (const tech of BALANCE.research.technologies) {
       if (!s.research.techPurchased.includes(tech.id)) continue;
       const e = tech.effect as Record<string, number>;
@@ -238,6 +246,14 @@ class GameStore {
       if (e.passiveMultiplier)  passive  *= e.passiveMultiplier;
       if (e.globalMultiplier)   global   *= e.globalMultiplier;
       if (e.researchMultiplier) research *= e.researchMultiplier;
+    }
+
+    // Project upgrades also contribute multipliers
+    for (const proj of BALANCE.projects) {
+      if (!s.projects.find(p => p.id === proj.id)?.purchased) continue;
+      const e = proj.effect as Record<string, number | string | boolean>;
+      if (typeof e.passiveMultiplier === 'number') passive *= e.passiveMultiplier;
+      if (typeof e.globalMultiplier  === 'number') global  *= e.globalMultiplier;
     }
 
     s.multipliers.click    = click;

@@ -1,5 +1,5 @@
 import { store } from '../../core/GameStore.js';
-import { BALANCE, formatNumber, generatorCost } from '../../core/balance.js';
+import { BALANCE, formatNumber, generatorCost, getMilestoneMultiplier } from '../../core/balance.js';
 
 function getSellPrice(genId: string): number {
   const gen = BALANCE.generators.find(g => g.id === genId)!;
@@ -52,6 +52,14 @@ export function mountProduction(container: HTMLElement): () => void {
       const tradeUnlocked = isTradeUnlocked();
       const sellPrice = getSellPrice(gen.id);
 
+      const milestoneMult = getMilestoneMultiplier(gen.milestones, gs.owned);
+      const nextMs = gen.milestones.find(m => m.owned > gs.owned);
+      const msText = gs.owned > 0
+        ? (nextMs
+          ? `×${milestoneMult} actif · prochain ×${nextMs.multiplier} à ${nextMs.owned}`
+          : `×${milestoneMult} MAX`)
+        : (nextMs ? `Palier ×${nextMs.multiplier} à ${nextMs.owned}` : '');
+
       const card = document.createElement('div');
       card.className = `gen-card${canAfford ? ' gen-card--affordable' : ''}`;
       card.dataset.id = gen.id;
@@ -60,6 +68,7 @@ export function mountProduction(container: HTMLElement): () => void {
         <div class="gen-card__info">
           <div class="gen-card__name">${gen.name}</div>
           <div class="gen-card__bps mono">${gs.owned > 0 ? formatNumber(bps) + ' b/s' : 'inactif'}</div>
+          ${msText ? `<div class="gen-card__milestone">${msText}</div>` : ''}
           ${tradeUnlocked && gs.owned > 0 ? `<button class="gen-sell-btn" data-sell="${gen.id}" data-price="${sellPrice}">Vendre ${formatNumber(sellPrice)}</button>` : ''}
         </div>
         <div class="gen-card__right">

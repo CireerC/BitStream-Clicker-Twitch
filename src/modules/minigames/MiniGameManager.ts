@@ -169,7 +169,15 @@ export function startMiniGameManager(): () => void {
     function onLose(): void {
       clearInterval(countdown);
       cleanupGame?.();
+      applyLossPenalty();
       showResult(false);
+    }
+
+    function applyLossPenalty(): void {
+      const loss = Math.floor(store.getState().bits * BALANCE.minigames.lossPenaltyPct);
+      if (loss > 0) {
+        store.setState(s => { s.bits = Math.max(0, s.bits - loss); });
+      }
     }
 
     function showResult(won: boolean): void {
@@ -177,13 +185,14 @@ export function startMiniGameManager(): () => void {
       resultEl.style.display = 'flex';
       const bps = store.getEffectiveBPS();
       const reward = bps * BALANCE.minigames.burstDurationSec * BALANCE.minigames.burstBpsMultiplier;
+      const loss = Math.floor(store.getState().bits * BALANCE.minigames.lossPenaltyPct);
 
       resultEl.innerHTML = won
         ? `<div class="mg-result mg-result--win">
              <span>🎉 +${formatNumber(reward)} bits !</span>
              <small>×${BALANCE.minigames.burstBpsMultiplier} BPS · ${formatDuration(BALANCE.minigames.burstDurationSec)}</small>
            </div>`
-        : `<div class="mg-result mg-result--lose"><span>💀 FAUX !</span></div>`;
+        : `<div class="mg-result mg-result--lose"><span>💀 Raté ! −${formatNumber(loss)} bits</span></div>`;
 
       resultTimer = window.setTimeout(() => dismiss(true), 2200);
     }

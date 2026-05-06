@@ -157,10 +157,17 @@ export function mountCasino(container: HTMLElement): () => void {
 
   function getBet(inputId: string): number {
     const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
-    return Math.max(1, parseInt(inp?.value || '1') || 1);
+    const val = Math.max(1, parseInt(inp?.value || '1') || 1);
+    localStorage.setItem(`bs_bet_${inputId}`, String(val));
+    return val;
   }
 
-  function betHTML(inputId: string, defaultVal = 100): string {
+  function getSavedBet(inputId: string, fallback = 100): number {
+    return parseInt(localStorage.getItem(`bs_bet_${inputId}`) || String(fallback)) || fallback;
+  }
+
+  function betHTML(inputId: string, fallback = 100): string {
+    const saved = getSavedBet(inputId, fallback);
     return `
       <div class="bet-wrap">
         <div class="bet-quicks">
@@ -169,7 +176,7 @@ export function mountCasino(container: HTMLElement): () => void {
           <button class="bet-quick" data-pct="50">50%</button>
           <button class="bet-quick" data-pct="100">MAX</button>
         </div>
-        <input type="number" id="${inputId}" class="bet-input" value="${defaultVal}" min="1">
+        <input type="number" id="${inputId}" class="bet-input" value="${saved}" min="1">
       </div>
     `;
   }

@@ -110,21 +110,28 @@ export function mountLeaderboard(container: HTMLElement): () => void {
     renderEntries();
   }
 
-  async function maybePushScore(): Promise<void> {
+  let lastSubmittedScore = 0;
+
+  async function maybePushScore(force = false): Promise<void> {
     if (!online) return;
-    const now = Date.now();
-    if (now - lastSubmit < SUBMIT_MS) return;
     const playerName = getPlayerName();
     if (!playerName) return;
     const current = store.getState().totalBitsEarned;
     playerBest = Math.max(playerBest, current);
     if (playerBest <= 0) return;
+
+    const now = Date.now();
+    const significantIncrease = playerBest > lastSubmittedScore * 1.05 || playerBest > lastSubmittedScore + 10_000;
+    if (!force && now - lastSubmit < SUBMIT_MS && !significantIncrease) return;
+
     lastSubmit = now;
+    lastSubmittedScore = playerBest;
     try { await upsertScore(playerName, playerBest); } catch { /* silent */ }
   }
 
-  // Initial load
+  // Initial load + immediate score push
   void loadFromServer();
+  setTimeout(() => void maybePushScore(true), 3000);
 
   // Periodic refresh + score submission
   pollTimer   = window.setInterval(() => { void loadFromServer(); }, POLL_MS);

@@ -14,8 +14,10 @@ function pointsForSize(size: number): number {
   return 1;
 }
 
-// Reward: sum of points × bet × 0.12 (each point worth 12% of bet)
-const REWARD_PER_POINT = 0.12;
+// Reward: fixed bits per point + small fraction of bet (not multiplicative)
+// This prevents high-bet AimTrainer from dominating economy
+const BITS_PER_POINT = 8;          // flat bits per point regardless of bet
+const BET_RETURN_ON_WIN = 0.6;     // return 60% of bet if you score any points (partial refund)
 
 export function mountAimTrainer(container: HTMLElement): () => void {
   let gameActive = false;
@@ -145,11 +147,16 @@ export function mountAimTrainer(container: HTMLElement): () => void {
     betLiveEl.style.display = 'none';
     hintEl.style.display = 'block';
 
-    const reward = Math.floor(points * bet * REWARD_PER_POINT);
-    if (reward > 0) {
+    // Reward: fixed per-point bonus + partial bet refund if scored
+    const pointBonus = points * BITS_PER_POINT;
+    const betRefund  = hits > 0 ? Math.floor(bet * BET_RETURN_ON_WIN) : 0;
+    const totalReturn = pointBonus + betRefund;
+    const net = totalReturn - bet;
+
+    if (totalReturn > 0) {
       store.setState(s => {
-        s.bits += reward;
-        s.totalBitsEarned += reward;
+        s.bits += totalReturn;
+        s.totalBitsEarned += totalReturn;
       });
     }
 
@@ -158,7 +165,6 @@ export function mountAimTrainer(container: HTMLElement): () => void {
       resultEl.className = 'aim-result aim-result--lose';
       resultEl.textContent = `🎯 0 cible — Perdu ${formatNumber(bet)} bits`;
     } else {
-      const net = reward - bet;
       const sign = net >= 0 ? '+' : '';
       resultEl.className = `aim-result ${net >= 0 ? 'aim-result--win' : 'aim-result--lose'}`;
       resultEl.textContent = `🎯 ${hits} hits · ${points} pts → ${sign}${formatNumber(net)} bits nets`;

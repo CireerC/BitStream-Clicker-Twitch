@@ -54,6 +54,10 @@ export const translations = {
     'project.casino_charter_desc': 'Unlocks the Casino module.',
     'project.aim_protocol': 'Precision Protocol',
     'project.aim_protocol_desc': 'Unlocks the Aim Trainer module.',
+    'project.bomb_defuser': 'Bomb Defuser',
+    'project.bomb_defuser_desc': 'Reduces bomb frequency in the clicker by 50%.',
+    'project.neural_overclock': 'Neural Overclock',
+    'project.neural_overclock_desc': 'All generators produce ×1.5 permanently.',
     'project.launch_protocol': 'Launch Protocol',
     'project.launch_protocol_desc': 'Initiates the final sequence.',
 
@@ -165,6 +169,10 @@ export const translations = {
     'project.casino_charter_desc': 'Déverrouille le module Casino.',
     'project.aim_protocol': 'Protocole de Précision',
     'project.aim_protocol_desc': 'Déverrouille l\'Aim Trainer.',
+    'project.bomb_defuser': 'Désamorceur de Bombes',
+    'project.bomb_defuser_desc': 'Réduit la fréquence des bombes dans le clicker de 50%.',
+    'project.neural_overclock': 'Surclocking Neuronal',
+    'project.neural_overclock_desc': 'Tous les générateurs produisent ×1.5 de façon permanente.',
     'project.launch_protocol': 'Protocole de Lancement',
     'project.launch_protocol_desc': 'Initie la séquence finale.',
 

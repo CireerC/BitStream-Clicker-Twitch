@@ -1788,12 +1788,14 @@ html, body {
 }
 .username-modal__btn:hover { opacity: 0.85; }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* ── Responsive — tablet (900px) ─────────────────────────────────────────── */
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
     height: auto;
     overflow: visible;
+    padding: var(--gap-sm);
+    gap: var(--gap-sm);
   }
 
   .layout__left,
@@ -1802,4 +1804,106 @@ html, body {
     overflow: visible;
     width: 100%;
   }
+}
+
+/* ── Responsive — mobile (600px) ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  html { font-size: 14px; }
+
+  .hdr { padding: 0 var(--gap-sm); height: 52px; }
+  .hdr__title { font-size: 1rem; }
+
+  /* Click button bigger for finger tapping */
+  .click-btn { width: 130px; height: 130px; font-size: 2rem; }
+  .click-btn__label { font-size: 0.65rem; }
+
+  /* Stats card horizontal scroll on small screens */
+  .stats-card { padding: var(--gap-sm); }
+  .stats-card__row { font-size: 0.75rem; }
+
+  /* Generator cards compact */
+  .gen-card { padding: var(--gap-sm); gap: var(--gap-sm); }
+  .gen-card__icon { font-size: 1.4rem; }
+  .gen-card__name { font-size: 0.75rem; }
+  .gen-btn { min-height: 44px; padding: 6px 10px; }
+  .gen-card__milestone { font-size: 0.6rem; }
+
+  /* Casino responsive */
+  .casino-tabs { gap: 4px; }
+  .casino-tab { padding: 6px 8px; font-size: 0.7rem; min-height: 40px; }
+  .casino-content { padding: var(--gap-sm); }
+  canvas { width: 100% !important; height: auto !important; }
+
+  /* Aim trainer field height on mobile */
+  .aim-field { height: 200px; }
+  .aim-target { min-width: 28px; min-height: 28px; }
+
+  /* Mini-game card */
+  .mg-card { width: 95vw; padding: var(--gap-sm); }
+  .mg-choice { min-height: 44px; font-size: 1rem; }
+  .mg-target { width: 52px !important; height: 52px !important; }
+
+  /* Panels */
+  .panel-title { font-size: 0.75rem; }
+  .missions-panel, .lb-panel, .projects-panel, .research-panel { padding: var(--gap-sm); }
+  .mission-card { padding: var(--gap-sm); }
+
+  /* Bet inputs and buttons */
+  .bet-input { font-size: 1rem; padding: 8px; min-height: 44px; }
+  .bet-quick { min-height: 36px; }
+  .casino-btn { min-height: 44px; }
+
+  /* Research */
+  .tech-card { padding: var(--gap-sm); }
+
+  /* Username modal */
+  .username-modal { width: 95vw; }
+
+  /* Clicker phase penalty label */
+  .clicker-penalty-label { font-size: 0.6rem; }
+
+  /* Combo bar */
+  .combo-bar { margin-top: 6px; }
+}
+
+/* ── Clicker bomb styles ──────────────────────────────────────────────────── */
+.click-btn--bomb {
+  background: #550000 !important;
+  border-color: #ff4444 !important;
+  animation: bomb-pulse 0.3s ease infinite alternate;
+}
+.click-btn--bomb .click-btn__icon { color: #ff4444 !important; }
+.click-btn--boom { animation: boom-shake 0.4s ease !important; }
+
+@keyframes bomb-pulse {
+  from { box-shadow: 0 0 8px #ff4444; }
+  to   { box-shadow: 0 0 20px #ff4444, 0 0 40px #ff000066; }
+}
+@keyframes boom-shake {
+  0%  { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 2px); }
+  40% { transform: translate(6px, -2px); }
+  60% { transform: translate(-4px, 4px); }
+  80% { transform: translate(4px, -4px); }
+  100%{ transform: translate(0, 0); }
+}
+
+.click-floater--bomb { color: #ff4444; font-weight: 700; }
+
+/* Generator milestone badge */
+.gen-card__milestone {
+  font-size: 0.62rem;
+  color: var(--accent);
+  opacity: 0.85;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Clicker phase penalty label */
+.clicker-penalty-label {
+  font-size: 0.65rem;
+  color: var(--accent2);
+  opacity: 0.8;
 }
