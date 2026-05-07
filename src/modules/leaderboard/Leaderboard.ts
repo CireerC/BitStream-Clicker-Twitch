@@ -147,12 +147,20 @@ export function mountLeaderboard(container: HTMLElement): () => void {
   pollTimer   = window.setInterval(() => { void loadFromServer(); }, POLL_MS);
   submitTimer = window.setInterval(() => { void maybePushScore(); }, SUBMIT_MS);
 
-  // Also re-render when store changes (live rank update)
-  const unsub = store.subscribe(renderEntries);
+  // Also re-render + maybe push when store changes
+  const unsub = store.subscribe(() => {
+    renderEntries();
+    void maybePushScore();
+  });
+
+  // Push score when leaving the page
+  const onUnload = (): void => { void maybePushScore(true); };
+  window.addEventListener('beforeunload', onUnload);
 
   return () => {
     clearInterval(pollTimer);
     clearInterval(submitTimer);
+    window.removeEventListener('beforeunload', onUnload);
     unsub();
   };
 }

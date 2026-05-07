@@ -47,10 +47,15 @@ export async function fetchLeaderboard(): Promise<LBEntry[]> {
 }
 
 export async function upsertScore(name: string, score: number): Promise<void> {
-  const now = new Date().toISOString();
+  const intScore = Math.floor(score);
+  // Try PATCH first (update existing row), then POST (insert if not exists)
+  await fetch(
+    `${SB_URL}/rest/v1/leaderboard?name=eq.${encodeURIComponent(name)}`,
+    { method: 'PATCH', headers: HEADERS, body: JSON.stringify({ score: intScore }) },
+  );
   await fetch(`${SB_URL}/rest/v1/leaderboard`, {
     method: 'POST',
-    headers: { ...HEADERS, Prefer: 'resolution=merge-duplicates' },
-    body: JSON.stringify({ name, score, updated_at: now }),
+    headers: { ...HEADERS, Prefer: 'resolution=ignore-duplicates' },
+    body: JSON.stringify({ name, score: intScore }),
   });
 }

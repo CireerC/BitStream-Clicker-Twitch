@@ -21,14 +21,16 @@ export function startTwitchPoller(config: TwitchConfig): () => void {
 
   store.setState(s => { s.twitch.channelName = config.channelName; });
 
+  const token = (window as any).__TWITCH_TOKEN__ as string | undefined;
+  if (!token) return () => {}; // no token → skip polling, badge stays offline
+
   async function poll(): Promise<void> {
     try {
       const url = `https://api.twitch.tv/helix/streams?user_login=${encodeURIComponent(config.channelName)}`;
       const res = await fetch(url, {
         headers: {
           'Client-ID': config.clientId,
-          // App Access Token required — see README for setup
-          'Authorization': `Bearer ${(window as any).__TWITCH_TOKEN__ ?? ''}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
@@ -71,20 +73,22 @@ export function mountTwitchBadge(container: HTMLElement): () => void {
 
     container.style.display = 'flex';
 
+    const channelUrl = `https://www.twitch.tv/${twitch.channelName || 'cireericfr'}`;
+
     if (twitch.isLive) {
       container.innerHTML = `
-        <div class="twitch-badge twitch-badge--live">
+        <a class="twitch-badge twitch-badge--live" href="${channelUrl}" target="_blank" rel="noopener">
           <span class="twitch-badge__dot"></span>
           <span class="twitch-badge__text">LIVE</span>
           <span class="twitch-badge__boost">+${Math.round((multipliers.twitch - 1) * 100)}%</span>
           ${twitch.gameName ? `<span class="twitch-badge__game">${twitch.gameName}</span>` : ''}
-        </div>
+        </a>
       `;
     } else {
       container.innerHTML = `
-        <div class="twitch-badge twitch-badge--offline">
-          <span class="twitch-badge__text">⚫ ${twitch.channelName} offline</span>
-        </div>
+        <a class="twitch-badge twitch-badge--offline" href="${channelUrl}" target="_blank" rel="noopener">
+          <span class="twitch-badge__text">⚫ ${twitch.channelName || 'cireericfr'} offline</span>
+        </a>
       `;
     }
   }

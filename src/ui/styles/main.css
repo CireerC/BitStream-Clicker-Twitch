@@ -289,6 +289,37 @@ html, body {
   border-color: rgba(0, 229, 192, 0.3);
 }
 
+/* ── Quantity selector ────────────────────────────────────────────────────── */
+.gen-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-sm);
+}
+.gen-panel-header .panel-title { margin-bottom: 0; }
+.gen-qty-bar {
+  display: flex;
+  gap: 3px;
+}
+.gen-qty-btn {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.gen-qty-btn:hover { background: var(--bg-3); color: var(--text-1); }
+.gen-qty-btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-0);
+}
+
 .gen-card__icon { font-size: 1.5rem; flex-shrink: 0; width: 32px; text-align: center; }
 
 .gen-card__info { flex: 1; min-width: 0; }
@@ -430,7 +461,12 @@ html, body {
   border: 1px solid var(--border);
   color: var(--text-2);
   background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--t-fast), color var(--t-fast);
 }
+.twitch-badge--offline:hover { border-color: #9147ff; color: #9147ff; }
+.twitch-badge--live { text-decoration: none; cursor: pointer; }
 
 /* ── Projects ────────────────────────────────────────────────────────────── */
 .projects-panel {
@@ -1143,11 +1179,17 @@ html, body {
 .aim-target {
   position: absolute;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent), inset 0 0 6px rgba(255,255,255,0.2);
+  background: #22aa44;           /* Verte grosse — 1 pt */
+  box-shadow: 0 0 10px #22aa44, inset 0 0 6px rgba(255,255,255,0.2);
   cursor: crosshair;
   border: 2px solid rgba(255,255,255,0.5);
   animation: aim-spawn 0.12s ease-out, aim-shrink var(--aim-life, 1.4s) linear forwards;
+}
+
+/* Cible moyenne (2 pts) — bleue */
+.aim-target--medium {
+  background: #2288dd;
+  box-shadow: 0 0 10px #2288dd, inset 0 0 6px rgba(255,255,255,0.25);
 }
 
 /* Petite cible (3 pts) — orange vif */
@@ -1156,24 +1198,20 @@ html, body {
   box-shadow: 0 0 12px #ff8800, inset 0 0 6px rgba(255,255,255,0.3);
   border-color: rgba(255,255,255,0.7);
 }
-/* Cible moyenne (2 pts) — accent clair */
-.aim-target--medium {
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-}
 
 .aim-target--bomb {
-  background: #440000;
-  border-color: #ff4444;
-  color: transparent;
-  font-size: 1.1rem;
+  background: #cc1111;           /* Rouge — perte */
+  border-color: #ff6666;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   animation: bomb-aim-pulse 0.4s ease infinite alternate;
   cursor: crosshair;
 }
-.aim-target--bomb::after { content: '💣'; font-size: 1rem; }
+.aim-target--bomb::after { content: '✕'; font-size: 1rem; }
 
 @keyframes bomb-aim-pulse {
   from { box-shadow: 0 0 6px #ff4444; }
@@ -1996,7 +2034,7 @@ html, body {
 .flappy-canvas {
   display: block;
   width: 100%;
-  max-width: 280px;
+  max-width: 340px;
   border-radius: 4px;
   border: 1px solid #333;
   image-rendering: pixelated;

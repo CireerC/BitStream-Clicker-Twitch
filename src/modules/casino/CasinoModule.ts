@@ -205,9 +205,7 @@ export function mountCasino(container: HTMLElement): () => void {
 
   function getBet(inputId: string): number {
     const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
-    const val = Math.max(1, parseInt(inp?.value || '1') || 1);
-    localStorage.setItem(`bs_bet_${inputId}`, String(val));
-    return val;
+    return Math.max(1, parseInt(inp?.value || '1') || 1);
   }
 
   function getSavedBet(inputId: string, fallback = 100): number {
@@ -236,8 +234,16 @@ export function mountCasino(container: HTMLElement): () => void {
         const max = Math.floor(store.getState().bits);
         const val = Math.max(1, Math.floor(max * pct / 100));
         const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
-        if (inp) inp.value = String(val);
+        if (inp) {
+          inp.value = String(val);
+          localStorage.setItem(`bs_bet_${inputId}`, String(val));
+        }
       });
+    });
+    // Save immediately when user types
+    const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
+    inp?.addEventListener('input', () => {
+      localStorage.setItem(`bs_bet_${inputId}`, inp.value);
     });
   }
 
@@ -251,12 +257,13 @@ export function mountCasino(container: HTMLElement): () => void {
   // JEU 1 : BLACKJACK (6 decks, split, animation BJ)
   // ───────────────────────────────────────────────────────────────────────────
   let bjDeck: Card[] = [];
-  let bjHands: Card[][] = [[]];   // 1 hand normally, 2 after split
+  let bjHands: Card[][] = [[]];
   let bjHandBets: number[] = [100];
-  let bjHandIdx = 0;              // hand currently being played
+  let bjHandIdx = 0;
   let bjDealer: Card[] = [];
-  let bjBet = 100;                // mise de la prochaine partie
+  let bjBet = 100;
   let bjPhase: 'bet' | 'play' | 'done' = 'bet';
+  let bjActionsLocked = false;   // prevents double-click on hit/stand after bust
 
   function bjPlayer(): Card[] { return bjHands[bjHandIdx]; }
   function bjActiveBet(): number { return bjHandBets[bjHandIdx]; }
@@ -376,6 +383,7 @@ export function mountCasino(container: HTMLElement): () => void {
     bjBet = getBet('bj-bet');
     if (store.getState().bits < bjBet) { showError('Bits insuffisants !'); return; }
     store.spendBits(bjBet);
+    bjActionsLocked = false;
     gameInProgress = true;
 
     bjDeck = shuffle(new6Deck());
@@ -408,19 +416,20 @@ export function mountCasino(container: HTMLElement): () => void {
   }
 
   function bjHit(): void {
+    if (bjActionsLocked || bjPhase !== 'play') return;
     bjPlayer().push({ ...bjDeck.pop()! });
     bjRender();
     const total = handVal(bjPlayer());
     if (total > 21) {
+      bjActionsLocked = true;
       setTimeout(() => {
         const msgEl = contentEl.querySelector<HTMLElement>('#bj-msg');
-        if (msgEl) {
-          msgEl.innerHTML = `<div class="bj-result bj-result--lose">💥 Bust (${total}) !</div>`;
-        }
-        setTimeout(() => bjNextHandOrFinish(), 1000);
+        if (msgEl) msgEl.innerHTML = `<div class="bj-result bj-result--lose">💥 Bust (${total}) !</div>`;
+        setTimeout(() => { bjActionsLocked = false; bjNextHandOrFinish(); }, 1000);
       }, 300);
     } else if (total === 21) {
-      setTimeout(() => bjStand(), 300);
+      bjActionsLocked = true;
+      setTimeout(() => { bjActionsLocked = false; bjStand(); }, 300);
     }
   }
 
@@ -435,6 +444,8 @@ export function mountCasino(container: HTMLElement): () => void {
   }
 
   function bjStand(): void {
+    if (bjActionsLocked || bjPhase !== 'play') return;
+    bjActionsLocked = true;
     bjNextHandOrFinish();
   }
 
@@ -689,20 +700,25 @@ export function mountCasino(container: HTMLElement): () => void {
         resultEl.style.display = 'block';
 
         if (sector.mult > 0) {
-          // Apply module multiplier only to the PROFIT (mult > 1).
-          // Partial returns (×0.5, ×1) are refunded as-is — no boost on losses.
           const moduleMult = store.getModuleMultiplier();
+          const streak = streakMultiplier();
           let gross: number;
+          let multLabel: string;
           if (sector.mult > 1) {
-            const profit = Math.floor(bet * (sector.mult - 1) * moduleMult * streakMultiplier());
+            const profit = Math.floor(bet * (sector.mult - 1) * moduleMult * streak);
             gross = bet + profit;
+            const effective = (sector.mult - 1) * moduleMult * streak;
+            multLabel = moduleMult > 1 || streak > 1
+              ? ` (×${sector.mult} × ×${moduleMult.toFixed(2)} module${streak > 1 ? ` × ×${streak.toFixed(2)} streak` : ''})`
+              : '';
           } else {
-            gross = Math.floor(bet * sector.mult); // partial refund, no boost
+            gross = Math.floor(bet * sector.mult);
+            multLabel = '';
           }
           const net = gross - bet;
           const netSign = net >= 0 ? '+' : '';
           store.addBits(gross);
-          resultEl.textContent = `${sector.label} — ${netSign}${formatNumber(net)} bits nets`;
+          resultEl.textContent = `${sector.label}${multLabel} — ${netSign}${formatNumber(net)} bits`;
           resultEl.className = net >= 0
             ? 'wheel-result-msg wheel-result--win'
             : 'wheel-result-msg wheel-result--lose';
@@ -744,7 +760,7 @@ export function mountCasino(container: HTMLElement): () => void {
           </div>
           <div class="bj-section">
             <div class="bj-label">Vous <span id="bj-player-total" class="bj-total"></span></div>
-            <div id="bj-player-cards"></div>
+            <div id="bj-player-cards" class="bj-cards"></div>
           </div>
           <div id="bj-controls" class="bj-controls"></div>
           <div id="bj-msg" class="bj-msg"></div>

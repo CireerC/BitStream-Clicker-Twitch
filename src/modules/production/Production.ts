@@ -1,5 +1,5 @@
 import { store } from '../../core/GameStore.js';
-import { BALANCE, formatNumber, generatorCost, getMilestoneMultiplier } from '../../core/balance.js';
+import { BALANCE, formatNumber, generatorCost, bulkGeneratorCost, getMilestoneMultiplier } from '../../core/balance.js';
 
 function getSellPrice(genId: string): number {
   const gen = BALANCE.generators.find(g => g.id === genId)!;
@@ -14,12 +14,32 @@ function isTradeUnlocked(): boolean {
 export function mountProduction(container: HTMLElement): () => void {
   container.innerHTML = `
     <div class="production-panel">
-      <h2 class="panel-title">Générateurs</h2>
+      <div class="gen-panel-header">
+        <h2 class="panel-title">Générateurs</h2>
+        <div class="gen-qty-bar">
+          <button class="gen-qty-btn gen-qty-btn--active" data-qty="1">×1</button>
+          <button class="gen-qty-btn" data-qty="5">×5</button>
+          <button class="gen-qty-btn" data-qty="10">×10</button>
+          <button class="gen-qty-btn" data-qty="100">×100</button>
+        </div>
+      </div>
       <div id="generators-list" class="generators-list"></div>
     </div>
   `;
 
   const list = container.querySelector<HTMLDivElement>('#generators-list')!;
+  let buyQty: number = 1;
+
+  container.querySelectorAll<HTMLElement>('.gen-qty-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      buyQty = parseInt(btn.dataset.qty || '1');
+      container.querySelectorAll('.gen-qty-btn').forEach(b =>
+        b.classList.toggle('gen-qty-btn--active', b === btn)
+      );
+      lastStructSig = '';  // force full re-render
+      fullRender();
+    });
+  });
 
   // Signature of state that requires a full DOM rebuild
   let lastStructSig = '';
@@ -45,7 +65,9 @@ export function mountProduction(container: HTMLElement): () => void {
       if (state.totalBitsEarned < gen.unlockAt) continue;
       anyVisible = true;
 
-      const cost = generatorCost(gen.baseCost, gen.growthRate, gs.owned);
+      const cost = buyQty === 1
+        ? generatorCost(gen.baseCost, gen.growthRate, gs.owned)
+        : bulkGeneratorCost(gen.baseCost, gen.growthRate, gs.owned, buyQty);
       const canAfford = state.bits >= cost;
       const bps = gs.owned * gen.baseBps * store.getPassiveMultiplier();
 
@@ -75,7 +97,7 @@ export function mountProduction(container: HTMLElement): () => void {
           <div class="gen-card__owned mono">${gs.owned}</div>
           <button class="gen-btn${canAfford ? '' : ' gen-btn--disabled'}" data-buy="${gen.id}">
             <span class="gen-btn__cost mono">${formatNumber(cost)}</span>
-            <span class="gen-btn__label">ACHETER</span>
+            <span class="gen-btn__label">${buyQty > 1 ? '×' + buyQty : 'ACHETER'}</span>
           </button>
         </div>
       `;
@@ -113,14 +135,16 @@ export function mountProduction(container: HTMLElement): () => void {
       if (!card) continue;
 
       const gs = state.generators.find(g => g.id === gen.id)!;
-      const cost = generatorCost(gen.baseCost, gen.growthRate, gs.owned);
-      const canAfford = state.bits >= cost;
+      const qtyCost = buyQty === 1
+        ? generatorCost(gen.baseCost, gen.growthRate, gs.owned)
+        : bulkGeneratorCost(gen.baseCost, gen.growthRate, gs.owned, buyQty);
+      const canAfford = state.bits >= qtyCost;
 
       card.classList.toggle('gen-card--affordable', canAfford);
 
       const btn = card.querySelector<HTMLElement>(`[data-buy="${gen.id}"]`)!;
       btn.classList.toggle('gen-btn--disabled', !canAfford);
-      btn.querySelector('.gen-btn__cost')!.textContent = formatNumber(cost);
+      btn.querySelector('.gen-btn__cost')!.textContent = formatNumber(qtyCost);
 
       if (gs.owned > 0) {
         const bps = gs.owned * gen.baseBps * store.getPassiveMultiplier();
@@ -155,7 +179,10 @@ export function mountProduction(container: HTMLElement): () => void {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-buy]');
     if (!btn) return;
     const id = btn.dataset.buy!;
-    if (store.buyGenerator(id)) {
+    const success = buyQty === 1
+      ? store.buyGenerator(id)
+      : store.bulkBuyGenerator(id, buyQty);
+    if (success) {
       const card = list.querySelector<HTMLElement>(`[data-id="${id}"]`);
       card?.classList.add('gen-card--bought');
     }

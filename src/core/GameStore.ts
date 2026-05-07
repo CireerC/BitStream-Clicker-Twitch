@@ -1,4 +1,4 @@
-import { BALANCE, ACHIEVEMENTS, generatorCost, getMilestoneMultiplier } from './balance.js';
+import { BALANCE, ACHIEVEMENTS, generatorCost, bulkGeneratorCost, getMilestoneMultiplier } from './balance.js';
 import type { GameState, MultiplierState } from '../store/types.js';
 
 type Listener = () => void;
@@ -212,6 +212,19 @@ class GameStore {
     this.setState(s => {
       s.bits -= cost;
       s.generators.find(g => g.id === genId)!.owned += 1;
+    });
+    return true;
+  }
+
+  bulkBuyGenerator(genId: string, count: number): boolean {
+    const def = BALANCE.generators.find(g => g.id === genId);
+    const gs  = this.state.generators.find(g => g.id === genId);
+    if (!def || !gs) return false;
+    const cost = bulkGeneratorCost(def.baseCost, def.growthRate, gs.owned, count);
+    if (this.state.bits < cost) return false;
+    this.setState(s => {
+      s.bits -= cost;
+      s.generators.find(g => g.id === genId)!.owned += count;
     });
     return true;
   }
