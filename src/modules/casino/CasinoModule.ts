@@ -205,11 +205,19 @@ export function mountCasino(container: HTMLElement): () => void {
 
   function getBet(inputId: string): number {
     const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
-    return Math.max(1, parseInt(inp?.value || '1') || 1);
+    return Math.max(1, Math.floor(parseFloat(inp?.value || '1') || 1));
   }
 
   function getSavedBet(inputId: string, fallback = 100): number {
-    return parseInt(localStorage.getItem(`bs_bet_${inputId}`) || String(fallback)) || fallback;
+    return Math.floor(parseFloat(localStorage.getItem(`bs_bet_${inputId}`) || String(fallback)) || fallback);
+  }
+
+  function updateBetPreview(inputId: string): void {
+    const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
+    const preview = contentEl.querySelector<HTMLElement>(`#preview-${inputId}`);
+    if (!inp || !preview) return;
+    const val = Math.floor(parseFloat(inp.value) || 0);
+    preview.textContent = val > 0 ? `= ${formatNumber(val)} bits` : '';
   }
 
   function betHTML(inputId: string, fallback = 100): string {
@@ -222,7 +230,10 @@ export function mountCasino(container: HTMLElement): () => void {
           <button class="bet-quick" data-pct="50">50%</button>
           <button class="bet-quick" data-pct="100">MAX</button>
         </div>
-        <input type="number" id="${inputId}" class="bet-input" value="${saved}" min="1">
+        <div class="bet-input-row">
+          <input type="number" id="${inputId}" class="bet-input" value="${saved}" min="1">
+          <span class="bet-preview" id="preview-${inputId}"></span>
+        </div>
       </div>
     `;
   }
@@ -231,20 +242,22 @@ export function mountCasino(container: HTMLElement): () => void {
     contentEl.querySelectorAll<HTMLElement>('.bet-quick').forEach(btn => {
       btn.addEventListener('click', () => {
         const pct = parseInt(btn.dataset.pct || '100');
-        const max = Math.floor(store.getState().bits);
+        const max = store.getState().bits;
         const val = Math.max(1, Math.floor(max * pct / 100));
         const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
         if (inp) {
           inp.value = String(val);
           localStorage.setItem(`bs_bet_${inputId}`, String(val));
+          updateBetPreview(inputId);
         }
       });
     });
-    // Save immediately when user types
     const inp = contentEl.querySelector<HTMLInputElement>(`#${inputId}`);
     inp?.addEventListener('input', () => {
       localStorage.setItem(`bs_bet_${inputId}`, inp.value);
+      updateBetPreview(inputId);
     });
+    updateBetPreview(inputId);
   }
 
   function addHistory(game: string, won: boolean, amount: number): void {

@@ -883,6 +883,18 @@ html, body {
 
 .bet-quicks { display: flex; gap: 4px; }
 
+.bet-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bet-preview {
+  font-size: 0.72rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .bet-quick {
   background: var(--bg-1);
   border: 1px solid var(--border);
@@ -2027,14 +2039,14 @@ html, body {
 }
 .flappy-wrap {
   position: relative;
-  display: inline-block;
+  display: block;
   width: 100%;
   cursor: pointer;
 }
 .flappy-canvas {
   display: block;
   width: 100%;
-  max-width: 340px;
+  aspect-ratio: 340 / 200;
   border-radius: 4px;
   border: 1px solid #333;
   image-rendering: pixelated;

@@ -1,6 +1,6 @@
 import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
-import { isSupabaseConfigured, fetchLeaderboard, upsertScore, type LBEntry } from '../../integrations/supabase/LeaderboardDB.js';
+import { isSupabaseConfigured, fetchLeaderboard, upsertScore, deleteScore, type LBEntry } from '../../integrations/supabase/LeaderboardDB.js';
 
 export const NAME_KEY = 'bs_player_name';
 export const BEST_KEY = 'bs_player_best';
@@ -37,13 +37,13 @@ export function savePlayerName(name: string): void {
   localStorage.setItem(NAME_KEY, name);
 }
 
-/** Called on full game reset: clear local data and zero-out Supabase score */
+/** Called on full game reset: clear local data and delete the Supabase row */
 export async function resetPlayerLeaderboard(): Promise<void> {
   const name = getPlayerName();
   localStorage.removeItem(NAME_KEY);
   localStorage.removeItem(BEST_KEY);
   if (name && isSupabaseConfigured()) {
-    try { await upsertScore(name, 0); } catch { /* silent */ }
+    try { await deleteScore(name); } catch { /* silent */ }
   }
 }
 

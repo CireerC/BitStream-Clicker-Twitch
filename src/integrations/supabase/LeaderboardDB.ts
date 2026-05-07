@@ -59,3 +59,10 @@ export async function upsertScore(name: string, score: number): Promise<void> {
     body: JSON.stringify({ name, score: intScore }),
   });
 }
+
+export async function deleteScore(name: string): Promise<void> {
+  await fetch(
+    `${SB_URL}/rest/v1/leaderboard?name=eq.${encodeURIComponent(name)}`,
+    { method: 'DELETE', headers: HEADERS },
+  );
+}

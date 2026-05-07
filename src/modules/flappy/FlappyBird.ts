@@ -17,7 +17,7 @@ function rewardPerPipe(): number {
   return Math.floor(50 * store.getModuleMultiplier());
 }
 
-interface Pipe { x: number; topH: number; }
+interface Pipe { x: number; topH: number; scored?: boolean; }
 
 export function mountFlappy(container: HTMLElement): () => void {
   container.innerHTML = `
@@ -167,7 +167,8 @@ export function mountFlappy(container: HTMLElement): () => void {
 
     for (const p of pipes) {
       p.x -= PIPE_SPEED;
-      if (Math.round(p.x + PIPE_W) === BIRD_X) {
+      if (!p.scored && p.x + PIPE_W < BIRD_X) {
+        p.scored = true;
         score++;
         scoreEl.textContent = String(score);
       }
