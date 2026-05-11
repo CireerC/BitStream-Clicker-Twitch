@@ -64,12 +64,12 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
         <section id="prod-slot"></section>
       </section>
 
-      <!-- Colonne centre-droite : Modules débloquables + Puzzle -->
+      <!-- Colonne centre-droite : Modules débloquables -->
       <section class="layout__center-right">
         <section id="casino-slot"     style="display:none"></section>
         <section id="aimtrainer-slot" style="display:none"></section>
         <section id="flappy-slot"     style="display:none"></section>
-        <section id="puzzle-slot"></section>
+        <section id="puzzle-slot"     style="display:none"></section>
       </section>
 
       <!-- Colonne droite : Projets + Succès + Classement -->
@@ -86,7 +86,6 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   mountProduction(root.querySelector('#prod-slot')!);
   mountProjects(root.querySelector('#projects-slot')!);
   mountLeaderboard(root.querySelector('#leaderboard-slot')!);
-  mountPuzzle(root.querySelector('#puzzle-slot')!);
   mountAchievements(root.querySelector('#achievements-slot')!);
   startMiniGameManager();
   startPhaseManager();
@@ -101,10 +100,12 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   const casinoSlot      = root.querySelector<HTMLElement>('#casino-slot')!;
   const aimtrainerSlot  = root.querySelector<HTMLElement>('#aimtrainer-slot')!;
   const flappySlot      = root.querySelector<HTMLElement>('#flappy-slot')!;
+  const puzzleSlot      = root.querySelector<HTMLElement>('#puzzle-slot')!;
 
   let casinoMounted     = false;
   let aimtrainerMounted = false;
   let flappyMounted     = false;
+  let puzzleMounted     = false;
 
   function maybeUnlockModules(): void {
     const state = store.getState();
@@ -115,16 +116,22 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
       casinoMounted = true;
     }
 
-    if (!aimtrainerMounted && state.projects.find(p => p.id === 'protocole_precision')?.purchased) {
-      aimtrainerSlot.style.display = '';
-      mountAimTrainer(aimtrainerSlot);
-      aimtrainerMounted = true;
+    if (!puzzleMounted && state.projects.find(p => p.id === 'protocole_puzzle')?.purchased) {
+      puzzleSlot.style.display = '';
+      mountPuzzle(puzzleSlot);
+      puzzleMounted = true;
     }
 
     if (!flappyMounted && state.projects.find(p => p.id === 'protocole_arcade')?.purchased) {
       flappySlot.style.display = '';
       mountFlappy(flappySlot);
       flappyMounted = true;
+    }
+
+    if (!aimtrainerMounted && state.projects.find(p => p.id === 'protocole_precision')?.purchased) {
+      aimtrainerSlot.style.display = '';
+      mountAimTrainer(aimtrainerSlot);
+      aimtrainerMounted = true;
     }
   }
 

@@ -62,6 +62,7 @@ function describeEffect(effect: EffectMap): string {
   else if (effect.unlocks === 'casino')      parts.push('Débloque : Casino');
   else if (effect.unlocks === 'aimtrainer')  parts.push('Débloque : Aim Trainer');
   else if (effect.unlocks === 'flappy')      parts.push('Débloque : Flappy Bit');
+  else if (effect.unlocks === 'puzzle')      parts.push('Débloque : Tile Match');
   if (typeof effect.bpsBonus    === 'number') parts.push(`+${Math.round(effect.bpsBonus * 100)}% production passive`);
   if (typeof effect.clickBonus  === 'number') parts.push(`+${Math.round(effect.clickBonus * 100)}% bits/clic`);
   if (typeof effect.globalBonus === 'number') parts.push(`+${Math.round(effect.globalBonus * 100)}% tous les gains`);

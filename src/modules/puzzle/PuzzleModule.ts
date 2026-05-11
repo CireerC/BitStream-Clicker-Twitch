@@ -1,7 +1,7 @@
 import { store } from '../../core/GameStore.js';
 import { formatNumber } from '../../core/balance.js';
 
-const COOLDOWN_MS = 30_000;
+const COOLDOWN_MS = 0;
 const GRID_W = 5;
 const GRID_H = 5;
 const TARGET = 100;

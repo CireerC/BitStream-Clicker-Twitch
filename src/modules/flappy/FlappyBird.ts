@@ -11,7 +11,7 @@ const PIPE_W     = 36;
 const PIPE_GAP   = 88;     // wider gap (was 72)
 const PIPE_SPEED = 2.0;
 const PIPE_INTERVAL = 90;
-const COOLDOWN_MS   = 20_000;
+const COOLDOWN_MS   = 0;
 
 function rewardPerPipe(): number {
   return Math.floor(50 * store.getModuleMultiplier());
@@ -71,6 +71,8 @@ export function mountFlappy(container: HTMLElement): () => void {
   let cooldownInt = 0;
   let countdownActive = false;
   let currentBet  = 0;
+  let deathTime   = 0;
+  const RESTART_LOCKOUT_MS = 2000;
 
   function updateBetPreview(): void {
     const val = Math.floor(parseFloat(betInput.value) || 0);
@@ -98,7 +100,11 @@ export function mountFlappy(container: HTMLElement): () => void {
 
   function flap(): void {
     if (countdownActive) return;
-    if (!started) { startWithCountdown(); return; }
+    if (!started) {
+      if (Date.now() - deathTime < RESTART_LOCKOUT_MS) return;
+      startWithCountdown();
+      return;
+    }
     if (alive) birdVY = FLAP_VEL;
   }
 
@@ -150,25 +156,35 @@ export function mountFlappy(container: HTMLElement): () => void {
     rafId = requestAnimationFrame(loop);
   }
 
+  // Minimum time (ms) the result screen stays visible before switching to "ready"
+  const RESULT_DISPLAY_MS = 3000;
+
+  function showReadyState(): void {
+    cooldownEl.style.display = 'none';
+    msgEl.textContent = '▶ Prêt !';
+    subEl.textContent = `Clique · +${formatNumber(rewardPerPipe())} bits/tuyau`;
+    overlay.style.display = 'flex';
+  }
+
   function startCooldown(): void {
     cooldownEnd = Date.now() + COOLDOWN_MS;
-    cooldownEl.style.display = '';
+    // Show cooldown counter only if there's an actual cooldown
+    if (COOLDOWN_MS > 0) cooldownEl.style.display = '';
+
     clearInterval(cooldownInt);
+    const readyAt = Date.now() + Math.max(COOLDOWN_MS, RESULT_DISPLAY_MS);
+
     cooldownInt = window.setInterval(() => {
-      const rem = Math.ceil((cooldownEnd - Date.now()) / 1000);
-      if (rem <= 0) {
-        clearInterval(cooldownInt);
-        cooldownEl.style.display = 'none';
-        betRow.style.display  = '';
-        betInput.disabled     = false;
-        // Show ready state
-        msgEl.textContent = '▶ Prêt !';
-        subEl.textContent = `Clique ou Espace · +${formatNumber(rewardPerPipe())} bits/tuyau`;
-        overlay.style.display = 'flex';
-      } else {
-        cooldownEl.textContent = `Disponible dans ${rem}s`;
+      const now = Date.now();
+      if (COOLDOWN_MS > 0 && now < cooldownEnd) {
+        cooldownEl.textContent = `Disponible dans ${Math.ceil((cooldownEnd - now) / 1000)}s`;
+        return;
       }
-    }, 500);
+      if (now >= readyAt && !started) {
+        clearInterval(cooldownInt);
+        showReadyState();
+      }
+    }, 200);
   }
 
   function die(): void {
@@ -195,6 +211,7 @@ export function mountFlappy(container: HTMLElement): () => void {
     betInput.disabled     = false;
     updateBetPreview();
 
+    deathTime = Date.now();
     startCooldown();
     started = false;
   }

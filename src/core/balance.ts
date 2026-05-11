@@ -279,6 +279,17 @@ export const BALANCE = {
       requires: [] as string[],
     },
     {
+      id: 'protocole_puzzle',
+      name: 'Protocole Puzzle',
+      description: 'Déverrouille le Tile Match. Efface des tuiles, misez pour multiplier vos gains.',
+      category: 'module' as const,
+      cost: 40_000,
+      unlockAt: 30_000,
+      phase: 2,
+      effect: { unlocks: 'puzzle' },
+      requires: [] as string[],
+    },
+    {
       id: 'protocole_arcade',
       name: 'Protocole Arcade',
       description: 'Déverrouille le mini-jeu Flappy Bit. Score = bits gagnés × moduleMultiplier.',
@@ -531,23 +542,43 @@ export function getMilestoneMultiplier(
   return mult;
 }
 
-/** Format large numbers with K / M / B / T / … suffixes up to decillions. */
+const NUMBER_TIERS: [number, string][] = [
+  [1e63, ' Vg'],  // vigintillion
+  [1e60, ' Nod'], // novemdecillion
+  [1e57, ' Ocd'], // octodecillion
+  [1e54, ' Spd'], // septendecillion
+  [1e51, ' Sxd'], // sexdecillion
+  [1e48, ' Qid'], // quindecillion
+  [1e45, ' Qad'], // quattuordecillion
+  [1e42, ' Td'],  // tredecillion
+  [1e39, ' Dd'],  // duodecillion
+  [1e36, ' Ud'],  // undecillion
+  [1e33, ' Dc'],  // decillion
+  [1e30, ' No'],  // nonillion
+  [1e27, ' Oc'],  // octillion
+  [1e24, ' Sp'],  // septillion
+  [1e21, ' Sx'],  // sextillion
+  [1e18, ' Qi'],  // quintillion
+  [1e15, ' Qa'],  // quadrillion
+  [1e12, ' T'],
+  [1e9,  ' B'],
+  [1e6,  ' M'],
+  [1e3,  ' K'],
+];
+
+/** Format large numbers with readable suffixes up to vigintillions (1e63). */
 export function formatNumber(n: number): string {
   if (!isFinite(n) || n < 0) return '0';
-  if (n >= 1e33) return (n / 1e33).toFixed(2) + ' Dc';
-  if (n >= 1e30) return (n / 1e30).toFixed(2) + ' No';
-  if (n >= 1e27) return (n / 1e27).toFixed(2) + ' Oc';
-  if (n >= 1e24) return (n / 1e24).toFixed(2) + ' Sp';
-  if (n >= 1e21) return (n / 1e21).toFixed(2) + ' Sx';
-  if (n >= 1e18) return (n / 1e18).toFixed(2) + ' Qi';
-  if (n >= 1e15) return (n / 1e15).toFixed(2) + ' Qa';
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + ' T';
-  if (n >= 1e9)  return (n / 1e9).toFixed(2) + ' B';
-  if (n >= 1e6)  return (n / 1e6).toFixed(2) + ' M';
-  if (n >= 1e3)  return (n / 1e3).toFixed(2) + ' K';
-  if (n >= 10)   return Math.floor(n).toString();
-  if (n >= 1)    return n.toFixed(1);
-  if (n > 0)     return n.toFixed(2);
+  if (n >= 1e66) {
+    const exp = Math.floor(Math.log10(n));
+    return (n / Math.pow(10, exp)).toFixed(2) + 'e' + exp;
+  }
+  for (const [threshold, suffix] of NUMBER_TIERS) {
+    if (n >= threshold) return (n / threshold).toFixed(2) + suffix;
+  }
+  if (n >= 10)  return Math.floor(n).toString();
+  if (n >= 1)   return n.toFixed(1);
+  if (n > 0)    return n.toFixed(2);
   return '0';
 }
 
