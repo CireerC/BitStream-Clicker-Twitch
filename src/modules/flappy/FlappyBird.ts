@@ -34,6 +34,18 @@ export function mountFlappy(container: HTMLElement): () => void {
         <span>Score : <span id="flappy-score" class="mono">0</span></span>
         <span id="flappy-cooldown" class="flappy-cooldown" style="display:none"></span>
       </div>
+      <div class="flappy-bet" id="flappy-bet-row">
+        <div class="bet-quicks">
+          <button class="bet-quick" data-pct="10">10%</button>
+          <button class="bet-quick" data-pct="25">25%</button>
+          <button class="bet-quick" data-pct="50">50%</button>
+          <button class="bet-quick" data-pct="100">MAX</button>
+        </div>
+        <div class="bet-input-row">
+          <input class="bet-input" id="flappy-bet-input" type="number" min="0" step="1" placeholder="0" />
+          <span class="bet-preview" id="flappy-bet-preview"></span>
+        </div>
+      </div>
     </div>
   `;
 
@@ -44,18 +56,43 @@ export function mountFlappy(container: HTMLElement): () => void {
   const subEl      = container.querySelector<HTMLElement>('#flappy-sub')!;
   const scoreEl    = container.querySelector<HTMLElement>('#flappy-score')!;
   const cooldownEl = container.querySelector<HTMLElement>('#flappy-cooldown')!;
+  const betRow      = container.querySelector<HTMLElement>('#flappy-bet-row')!;
+  const betInput    = container.querySelector<HTMLInputElement>('#flappy-bet-input')!;
+  const betPreview  = container.querySelector<HTMLElement>('#flappy-bet-preview')!;
 
   let birdY       = H / 2;
   let birdVY      = 0;
   let pipes: Pipe[] = [];
-  let frame       = 0;
-  let score       = 0;
-  let alive       = false;
-  let started     = false;
-  let rafId       = 0;
+  let score   = 0;
+  let alive   = false;
+  let started = false;
+  let rafId   = 0;
   let cooldownEnd = 0;
   let cooldownInt = 0;
   let countdownActive = false;
+  let currentBet  = 0;
+
+  function updateBetPreview(): void {
+    const val = Math.floor(parseFloat(betInput.value) || 0);
+    betPreview.textContent = val > 0 ? `= ${formatNumber(val)} bits` : '';
+  }
+
+  container.querySelectorAll<HTMLElement>('.bet-quick').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pct = parseInt(btn.dataset.pct ?? '100', 10);
+      const max = store.getState().bits;
+      betInput.value = String(Math.max(0, Math.floor(max * pct / 100)));
+      updateBetPreview();
+    });
+  });
+
+  betInput.addEventListener('input', updateBetPreview);
+  updateBetPreview();
+
+  // Delta-time: physics are independent of monitor refresh rate
+  let lastTimestamp  = 0;
+  let lastPipeSpawn  = 0;
+  const PIPE_INTERVAL_MS = PIPE_INTERVAL * (1000 / 60); // 1500 ms
 
   function isCoolingDown(): boolean { return Date.now() < cooldownEnd; }
 
@@ -91,15 +128,24 @@ export function mountFlappy(container: HTMLElement): () => void {
 
   function startGame(): void {
     if (isCoolingDown()) return;
-    birdY   = H / 2;
-    birdVY  = 0;
-    pipes   = [];
-    frame   = 0;
-    score   = 0;
-    alive   = true;
-    started = true;
+    const betVal = Math.floor(parseFloat(betInput.value) || 0);
+    if (betVal > 0 && !store.spendBits(betVal)) {
+      subEl.textContent = 'Pas assez de bits pour cette mise !';
+      return;
+    }
+    currentBet    = betVal;
+    birdY         = H / 2;
+    birdVY        = 0;
+    pipes         = [];
+    score         = 0;
+    alive         = true;
+    started       = true;
+    lastTimestamp = 0;
+    lastPipeSpawn = 0;
     overlay.style.display = 'none';
-    scoreEl.textContent = '0';
+    scoreEl.textContent   = '0';
+    betRow.style.display  = 'none';
+    betInput.disabled     = true;
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loop);
   }
@@ -113,6 +159,8 @@ export function mountFlappy(container: HTMLElement): () => void {
       if (rem <= 0) {
         clearInterval(cooldownInt);
         cooldownEl.style.display = 'none';
+        betRow.style.display  = '';
+        betInput.disabled     = false;
         // Show ready state
         msgEl.textContent = '▶ Prêt !';
         subEl.textContent = `Clique ou Espace · +${formatNumber(rewardPerPipe())} bits/tuyau`;
@@ -128,7 +176,12 @@ export function mountFlappy(container: HTMLElement): () => void {
     cancelAnimationFrame(rafId);
     draw();
 
-    const earned = score * rewardPerPipe();
+    let earned: number;
+    if (currentBet > 0) {
+      earned = Math.floor(currentBet * score / 5 * store.getModuleMultiplier());
+    } else {
+      earned = score * rewardPerPipe();
+    }
     if (earned > 0) store.addBits(earned);
 
     msgEl.style.fontSize = '';
@@ -138,6 +191,9 @@ export function mountFlappy(container: HTMLElement): () => void {
       : 'Raté ! Score : 0';
     subEl.textContent = score >= 10 ? '🔥 Bien joué !' : score >= 5 ? 'Pas mal !' : 'Continue...';
     overlay.style.display = 'flex';
+    betRow.style.display  = '';
+    betInput.disabled     = false;
+    updateBetPreview();
 
     startCooldown();
     started = false;
@@ -154,19 +210,24 @@ export function mountFlappy(container: HTMLElement): () => void {
     return bTop < pipe.topH || bBottom > pipe.topH + PIPE_GAP;
   }
 
-  function loop(): void {
-    frame++;
-    birdVY += GRAVITY;
-    birdY  += birdVY;
+  function loop(timestamp: number): void {
+    // Cap dt to 50ms to avoid huge jumps on tab-switch or slow frames
+    const dt = lastTimestamp > 0 ? Math.min(timestamp - lastTimestamp, 50) : 16.667;
+    lastTimestamp = timestamp;
+    const f = dt / 16.667; // 1.0 at 60fps, ~0.5 at 120fps, ~0.42 at 144fps
 
-    if (frame % PIPE_INTERVAL === 0) {
+    birdVY += GRAVITY * f;
+    birdY  += birdVY * f;
+
+    if (timestamp - lastPipeSpawn > PIPE_INTERVAL_MS) {
+      lastPipeSpawn = timestamp;
       const margin = 32;
       const topH = margin + Math.floor(Math.random() * (H - PIPE_GAP - margin * 2));
       pipes.push({ x: W, topH });
     }
 
     for (const p of pipes) {
-      p.x -= PIPE_SPEED;
+      p.x -= PIPE_SPEED * f;
       if (!p.scored && p.x + PIPE_W < BIRD_X) {
         p.scored = true;
         score++;
@@ -222,7 +283,13 @@ export function mountFlappy(container: HTMLElement): () => void {
     }
   }
 
-  const onClick = (): void => { if (!isCoolingDown()) flap(); };
+  const wrap = container.querySelector<HTMLElement>('.flappy-wrap')!;
+
+  const onClick = (e: MouseEvent): void => {
+    // Ignore clicks on bet-quick buttons that sit outside the wrap
+    if ((e.target as HTMLElement).closest('.bet-quick, .bet-input')) return;
+    if (!isCoolingDown()) flap();
+  };
   const onKey = (e: KeyboardEvent): void => {
     if (e.code === 'Space' || e.code === 'ArrowUp') {
       e.preventDefault();
@@ -230,7 +297,7 @@ export function mountFlappy(container: HTMLElement): () => void {
     }
   };
 
-  canvas.addEventListener('click', onClick);
+  wrap.addEventListener('click', onClick);
   window.addEventListener('keydown', onKey);
   draw();
 
@@ -238,7 +305,7 @@ export function mountFlappy(container: HTMLElement): () => void {
     cancelAnimationFrame(rafId);
     clearInterval(cooldownInt);
     countdownActive = false;
-    canvas.removeEventListener('click', onClick);
+    wrap.removeEventListener('click', onClick);
     window.removeEventListener('keydown', onKey);
   };
 }

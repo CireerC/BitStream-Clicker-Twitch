@@ -14,8 +14,8 @@
   --gold:    #dddddd;   /* light gray — rewards / success state */
 
   --text-0: #ffffff;    /* primary text — white */
-  --text-1: #999999;    /* secondary / muted — medium gray */
-  --text-2: #555555;    /* disabled — dark gray */
+  --text-1: #cccccc;    /* secondary / muted — light gray */
+  --text-2: #888888;    /* disabled / hint — medium gray */
 
   --border:  #333333;
   --border-accent: rgba(255, 255, 255, 0.1);

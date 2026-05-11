@@ -73,7 +73,9 @@ const keySequenceGame: MiniGame = {
     container.appendChild(display);
 
     function onKey(e: KeyboardEvent): void {
-      if (e.key.toUpperCase() === seq[idx]) {
+      const pressed = e.key.toUpperCase();
+      if (!keys.includes(pressed)) return; // ignore Space, arrows, etc.
+      if (pressed === seq[idx]) {
         display.querySelector<HTMLElement>(`#k${idx}`)?.classList.add('mg-key--hit');
         if (++idx >= seq.length) onWin();
       } else {

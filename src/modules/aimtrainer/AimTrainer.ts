@@ -52,7 +52,10 @@ export function mountAimTrainer(container: HTMLElement): () => void {
             <button class="bet-quick" data-pct="50">50%</button>
             <button class="bet-quick" data-pct="100">MAX</button>
           </div>
-          <input type="number" id="aim-bet" class="bet-input" value="100" min="1">
+          <div class="bet-input-row">
+            <input type="number" id="aim-bet" class="bet-input" value="100" min="1">
+            <span class="bet-preview" id="aim-bet-preview"></span>
+          </div>
         </div>
         <button class="casino-btn" id="aim-start">🎯 Lancer la session</button>
       </div>
@@ -71,16 +74,27 @@ export function mountAimTrainer(container: HTMLElement): () => void {
   const betLabelEl = container.querySelector<HTMLElement>('#aim-bet-label')!;
   const hintEl     = container.querySelector<HTMLElement>('#aim-hint')!;
 
+  const betPreviewEl = container.querySelector<HTMLElement>('#aim-bet-preview')!;
+
+  function updateBetPreview(): void {
+    const val = Math.floor(parseFloat(betInput.value) || 0);
+    betPreviewEl.textContent = val > 0 ? `= ${formatNumber(val)} bits` : '';
+  }
+
   container.querySelectorAll<HTMLElement>('.bet-quick').forEach(btn => {
     btn.addEventListener('click', () => {
       const pct = parseInt(btn.dataset.pct || '100');
       const max = Math.floor(store.getState().bits);
       betInput.value = String(Math.max(1, Math.floor(max * pct / 100)));
+      updateBetPreview();
     });
   });
 
+  betInput.addEventListener('input', updateBetPreview);
+  updateBetPreview();
+
   function getBet(): number {
-    return Math.max(1, parseInt(betInput.value) || 1);
+    return Math.max(1, Math.floor(parseFloat(betInput.value) || 1));
   }
 
   function spawnTarget(): void {
@@ -166,7 +180,7 @@ export function mountAimTrainer(container: HTMLElement): () => void {
       e.stopPropagation();
       if (!gameActive) return;
       // Clicking a bomb costs a fraction of the bet
-      const currentBet = Math.max(1, parseInt(betInput.value) || 1);
+      const currentBet = Math.max(1, Math.floor(parseFloat(betInput.value) || 1));
       const loss = Math.floor(currentBet * BOMB_BET_LOSS);
       if (loss > 0) {
         store.setState(s => { s.bits = Math.max(0, s.bits - loss); });

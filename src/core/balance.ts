@@ -347,17 +347,6 @@ export const BALANCE = {
       requires: [] as string[],
     },
     {
-      id: 'table_champions',
-      name: 'Table des Champions',
-      description: 'Accès VIP aux tables haute mise. Casino & Aim Trainer +50%.',
-      category: 'module' as const,
-      cost: 10_000_000,
-      unlockAt: 7_000_000,
-      phase: 4,
-      effect: { moduleBonus: 0.50 },
-      requires: [] as string[],
-    },
-    {
       id: 'acceleration_globale',
       name: 'Accélération Globale',
       description: 'Synchronise tous les systèmes. TOUS les gains +100%.',
@@ -542,13 +531,20 @@ export function getMilestoneMultiplier(
   return mult;
 }
 
-/** Format large numbers with K / M / B / T suffixes. */
+/** Format large numbers with K / M / B / T / … suffixes up to decillions. */
 export function formatNumber(n: number): string {
-  if (n >= 1e15) return (n / 1e15).toFixed(2) + 'Qa';
-  if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T';
-  if (n >= 1e9)  return (n / 1e9).toFixed(2) + 'B';
-  if (n >= 1e6)  return (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3)  return (n / 1e3).toFixed(2) + 'K';
+  if (!isFinite(n) || n < 0) return '0';
+  if (n >= 1e33) return (n / 1e33).toFixed(2) + ' Dc';
+  if (n >= 1e30) return (n / 1e30).toFixed(2) + ' No';
+  if (n >= 1e27) return (n / 1e27).toFixed(2) + ' Oc';
+  if (n >= 1e24) return (n / 1e24).toFixed(2) + ' Sp';
+  if (n >= 1e21) return (n / 1e21).toFixed(2) + ' Sx';
+  if (n >= 1e18) return (n / 1e18).toFixed(2) + ' Qi';
+  if (n >= 1e15) return (n / 1e15).toFixed(2) + ' Qa';
+  if (n >= 1e12) return (n / 1e12).toFixed(2) + ' T';
+  if (n >= 1e9)  return (n / 1e9).toFixed(2) + ' B';
+  if (n >= 1e6)  return (n / 1e6).toFixed(2) + ' M';
+  if (n >= 1e3)  return (n / 1e3).toFixed(2) + ' K';
   if (n >= 10)   return Math.floor(n).toString();
   if (n >= 1)    return n.toFixed(1);
   if (n > 0)     return n.toFixed(2);

@@ -7,19 +7,22 @@ export function showOfflineModal(report: OfflineReport): void {
   overlay.innerHTML = `
     <div class="mg-modal offline-modal" role="dialog" aria-modal="true">
       <div class="offline-modal__icon">💤</div>
-      <h2 class="offline-modal__title">Welcome back!</h2>
+      <h2 class="offline-modal__title">De retour !</h2>
       <p class="offline-modal__desc">
-        While you were away for <strong>${formatDuration(report.seconds)}</strong>,<br/>
-        your generators earned
+        Pendant ton absence de <strong>${formatDuration(report.seconds)}</strong>,<br/>
+        tes générateurs ont produit
       </p>
       <div class="offline-modal__amount mono">+${formatNumber(report.bitsEarned)} bits</div>
-      <button class="upg-btn offline-modal__btn" id="offline-close">Claim & Continue</button>
+      <button class="upg-btn offline-modal__btn" id="offline-close">Récupérer</button>
     </div>
   `;
   document.body.appendChild(overlay);
 
   overlay.querySelector('#offline-close')!.addEventListener('click', () => {
     overlay.classList.add('mg-overlay--out');
-    overlay.addEventListener('animationend', () => overlay.remove(), { once: true });
+    // Fallback in case animationend doesn't fire
+    const remove = (): void => overlay.remove();
+    overlay.addEventListener('animationend', remove, { once: true });
+    setTimeout(remove, 500);
   });
 }

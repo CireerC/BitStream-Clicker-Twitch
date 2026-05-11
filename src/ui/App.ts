@@ -5,9 +5,10 @@ import { mountProduction } from '../modules/production/Production.js';
 import { mountProjects } from '../modules/projects/ProjectSystem.js';
 import { mountCasino } from '../modules/casino/CasinoModule.js';
 import { mountAimTrainer } from '../modules/aimtrainer/AimTrainer.js';
-import { mountMissions } from '../modules/missions/MissionsModule.js';
 import { mountLeaderboard } from '../modules/leaderboard/Leaderboard.js';
 import { mountFlappy } from '../modules/flappy/FlappyBird.js';
+import { mountPuzzle } from '../modules/puzzle/PuzzleModule.js';
+import { mountAchievements } from '../modules/achievements/AchievementsPanel.js';
 import type { AchievementDef } from '../core/balance.js';
 import { startMiniGameManager } from '../modules/minigames/MiniGameManager.js';
 import { startPhaseManager } from '../modules/phases/PhaseManager.js';
@@ -53,23 +54,28 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
           </div>
           <div class="stats-card__row">
             <span class="stats-label" id="label-phase">Phase</span>
-            <span class="stats-value mono" id="stat-phase">I — Pirate Garage</span>
+            <span class="stats-value mono" id="stat-phase">I — Garage Hacker</span>
           </div>
         </div>
       </aside>
 
-      <!-- Colonne centre : Générateurs + Casino -->
-      <section class="layout__center">
+      <!-- Colonne centre-gauche : Générateurs -->
+      <section class="layout__center-left">
         <section id="prod-slot"></section>
-        <section id="casino-slot" style="display:none"></section>
-        <section id="aimtrainer-slot" style="display:none"></section>
-        <section id="flappy-slot" style="display:none"></section>
       </section>
 
-      <!-- Colonne droite : Projets + Missions + Leaderboard -->
+      <!-- Colonne centre-droite : Modules débloquables + Puzzle -->
+      <section class="layout__center-right">
+        <section id="casino-slot"     style="display:none"></section>
+        <section id="aimtrainer-slot" style="display:none"></section>
+        <section id="flappy-slot"     style="display:none"></section>
+        <section id="puzzle-slot"></section>
+      </section>
+
+      <!-- Colonne droite : Projets + Succès + Classement -->
       <aside class="layout__right">
         <section id="projects-slot"></section>
-        <section id="missions-slot"></section>
+        <section id="achievements-slot"></section>
         <section id="leaderboard-slot"></section>
       </aside>
     </main>
@@ -79,19 +85,19 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   mountClicker(root.querySelector('#clicker-slot')!);
   mountProduction(root.querySelector('#prod-slot')!);
   mountProjects(root.querySelector('#projects-slot')!);
-  mountMissions(root.querySelector('#missions-slot')!);
   mountLeaderboard(root.querySelector('#leaderboard-slot')!);
+  mountPuzzle(root.querySelector('#puzzle-slot')!);
+  mountAchievements(root.querySelector('#achievements-slot')!);
   startMiniGameManager();
   startPhaseManager();
 
   if (config.twitchClientId && config.twitchChannel) {
     startTwitchPoller({ clientId: config.twitchClientId, channelName: config.twitchChannel });
   }
-  // Le badge Twitch est monté dans le slot du header (créé par Header.ts)
   const twitchSlot = document.querySelector<HTMLElement>('#twitch-badge-slot');
   if (twitchSlot) mountTwitchBadge(twitchSlot);
 
-  // ── Dynamic module reveal (when projects unlock them) ──────────────────────
+  // ── Dynamic module reveal ─────────────────────────────────────────────────
   const casinoSlot      = root.querySelector<HTMLElement>('#casino-slot')!;
   const aimtrainerSlot  = root.querySelector<HTMLElement>('#aimtrainer-slot')!;
   const flappySlot      = root.querySelector<HTMLElement>('#flappy-slot')!;
@@ -123,7 +129,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   }
 
   store.subscribe(maybeUnlockModules);
-  maybeUnlockModules(); // check if any modules should be shown on load
+  maybeUnlockModules();
 
   // ── Achievement toasts ────────────────────────────────────────────────────
   function showAchievementToast(ach: AchievementDef): void {
@@ -147,7 +153,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     showAchievementToast((e as CustomEvent<AchievementDef>).detail);
   });
 
-  // ── Center stats ──────────────────────────────────────────────────────────
+  // ── Stats ─────────────────────────────────────────────────────────────────
   const statTotal  = root.querySelector<HTMLElement>('#stat-total')!;
   const statBps    = root.querySelector<HTMLElement>('#stat-bps')!;
   const statBpc    = root.querySelector<HTMLElement>('#stat-bpc')!;
@@ -156,7 +162,6 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
   const statBurst  = root.querySelector<HTMLElement>('#stat-burst')!;
   const statPhase  = root.querySelector<HTMLElement>('#stat-phase')!;
 
-  // Label elements for i18n
   const labelTotal = root.querySelector<HTMLElement>('#label-total')!;
   const labelBps   = root.querySelector<HTMLElement>('#label-bps')!;
   const labelBpc   = root.querySelector<HTMLElement>('#label-bpc')!;
@@ -181,14 +186,11 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     const phase = store.getCurrentPhase();
     const phaseInfo = BALANCE.phases.find(p => p.id === phase)!;
 
-    statTotal.textContent  = formatNumber(state.totalBitsEarned);
-    statBps.textContent    = formatNumber(store.getEffectiveBPS()) + ' b/s';
-    statBpc.textContent    = formatNumber(store.getEffectiveBPC()) + ' /click';
-    statPhase.textContent  = `${PHASE_NAMES[phase]} — ${phaseInfo.title}`;
-
-    // Multiplicateur effectif sur la production passive (BPS)
-    const totalMulti = store.getPassiveMultiplier();
-    statMulti.textContent = formatNumber(totalMulti) + '×';
+    statTotal.textContent = formatNumber(state.totalBitsEarned);
+    statBps.textContent   = formatNumber(store.getEffectiveBPS()) + ' b/s';
+    statBpc.textContent   = formatNumber(store.getEffectiveBPC()) + ' /click';
+    statPhase.textContent = `${PHASE_NAMES[phase]} — ${phaseInfo.title}`;
+    statMulti.textContent = formatNumber(store.getPassiveMultiplier()) + '×';
 
     const burstActive = store.isMinigameActive();
     burstRow.style.display = burstActive ? 'flex' : 'none';
@@ -198,7 +200,7 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     }
   }
 
-  // ── BPS sparkline graph ───────────────────────────────────────────────────
+  // ── BPS sparkline ─────────────────────────────────────────────────────────
   const bpsCanvas = root.querySelector<HTMLCanvasElement>('#bps-graph')!;
   const bpsCtx    = bpsCanvas.getContext('2d')!;
   const BPS_SAMPLES = 60;
@@ -219,7 +221,6 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
 
     const max = Math.max(...bpsHistory, 0.001);
 
-    // Fill area under line
     bpsCtx.beginPath();
     bpsHistory.forEach((v, i) => {
       const x = (i / (BPS_SAMPLES - 1)) * W;
@@ -232,7 +233,6 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     bpsCtx.fillStyle = 'rgba(255,255,255,0.04)';
     bpsCtx.fill();
 
-    // Line
     bpsCtx.beginPath();
     bpsHistory.forEach((v, i) => {
       const x = (i / (BPS_SAMPLES - 1)) * W;
@@ -244,15 +244,12 @@ export function mountApp(root: HTMLElement, config: AppConfig = {}): void {
     bpsCtx.stroke();
   }
 
-  // Sample every ~3s by piggy-backing on the store subscriber tick
   store.subscribe(sampleAndDrawBps);
-
-  // Update labels on language change and initial render
-  updateLabels();
   store.subscribe(updateLabels);
   store.subscribe(renderStats);
+
+  updateLabels();
   renderStats();
 
-  // Expose store to window for dev console commands
   (window as any).store = store;
 }
